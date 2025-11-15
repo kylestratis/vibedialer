@@ -1,5 +1,6 @@
 """Core dialer logic for VibeDialer."""
 
+import random
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -21,12 +22,15 @@ class PhoneDialer:
         """Initialize the phone dialer."""
         self.results: list[DialResult] = []
 
-    def generate_numbers(self, partial_number: str) -> list[str]:
+    def generate_numbers(
+        self, partial_number: str, randomize: bool = False
+    ) -> list[str]:
         """
         Generate phone numbers from a partial number.
 
         Args:
             partial_number: A partial phone number (e.g., "555-12")
+            randomize: If True, return numbers in random order. If False, sequential.
 
         Returns:
             List of generated phone numbers
@@ -54,6 +58,10 @@ class PhoneDialer:
             full_number = clean_number + suffix
             formatted = self._format_number(full_number)
             numbers.append(formatted)
+
+        # Randomize if requested
+        if randomize:
+            random.shuffle(numbers)
 
         return numbers
 
@@ -97,17 +105,20 @@ class PhoneDialer:
         self.results.append(result)
         return result
 
-    def dial_sequence(self, partial_number: str) -> list[DialResult]:
+    def dial_sequence(
+        self, partial_number: str, randomize: bool = False
+    ) -> list[DialResult]:
         """
         Dial a sequence of numbers generated from a partial number.
 
         Args:
             partial_number: Partial phone number to expand and dial
+            randomize: If True, dial numbers in random order. If False, sequential.
 
         Returns:
             List of DialResults for all dialed numbers
         """
-        numbers = self.generate_numbers(partial_number)
+        numbers = self.generate_numbers(partial_number, randomize=randomize)
         results = []
 
         for number in numbers:

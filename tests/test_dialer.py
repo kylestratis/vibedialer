@@ -1,6 +1,5 @@
 """Tests for the dialer core logic."""
 
-
 from vibedialer.dialer import DialResult, PhoneDialer
 
 
@@ -39,3 +38,44 @@ def test_dial_result_creation():
     assert result.phone_number == "555-1234"
     assert result.status == "connected"
     assert result.timestamp == "2025-11-15T12:00:00"
+
+
+def test_generate_numbers_sequential_order():
+    """Test that sequential mode generates numbers in order."""
+    dialer = PhoneDialer()
+    numbers = dialer.generate_numbers("555-12", randomize=False)
+    # Should be in sequential order
+    assert numbers[0] == "555-1200"
+    assert numbers[1] == "555-1201"
+    assert numbers[99] == "555-1299"
+    # Verify order
+    assert numbers == sorted(numbers)
+
+
+def test_generate_numbers_random_order():
+    """Test that random mode generates numbers in random order."""
+    dialer = PhoneDialer()
+    numbers = dialer.generate_numbers("555-12", randomize=True)
+    # Should have same numbers but likely in different order
+    assert len(numbers) == 100
+    assert "555-1200" in numbers
+    assert "555-1299" in numbers
+    # Should NOT be in sequential order (with very high probability)
+    # Check if at least some elements are out of order
+    sorted_numbers = sorted(numbers)
+    # With 100 random elements, probability of being sorted is astronomically low
+    assert numbers != sorted_numbers or len(set(numbers)) == 1
+
+
+def test_dial_sequence_with_random_mode():
+    """Test dialing sequence with randomization."""
+    dialer = PhoneDialer()
+    results = dialer.dial_sequence("555-00", randomize=True)
+    # Should have all 100 numbers
+    assert len(results) == 100
+    # All should be unique phone numbers
+    phone_numbers = [r.phone_number for r in results]
+    assert len(set(phone_numbers)) == 100
+    # Should contain expected range
+    assert any(r.phone_number == "555-0000" for r in results)
+    assert any(r.phone_number == "555-0099" for r in results)

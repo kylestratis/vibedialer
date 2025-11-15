@@ -2,7 +2,7 @@
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Button, DataTable, Footer, Header, Input, Label
+from textual.widgets import Button, DataTable, Footer, Header, Input, Label, Switch
 
 from vibedialer.dialer import PhoneDialer
 
@@ -54,6 +54,15 @@ class VibeDialerApp(App):
     Label {
         margin: 1 0;
     }
+
+    Switch {
+        margin: 1 0;
+    }
+
+    #mode-section {
+        height: auto;
+        margin-top: 1;
+    }
     """
 
     TITLE = "VibeDialer"
@@ -63,6 +72,7 @@ class VibeDialerApp(App):
         """Initialize the VibeDialer app."""
         super().__init__(*args, **kwargs)
         self.phone_number = ""
+        self.randomize = False
         self.dialer = PhoneDialer()
         self.title = "VibeDialer"
 
@@ -77,6 +87,9 @@ class VibeDialerApp(App):
                     id="phone-input",
                     value=self.phone_number,
                 )
+                with Horizontal(id="mode-section"):
+                    yield Label("Random Mode:")
+                    yield Switch(id="random-mode-switch", value=self.randomize)
                 with Horizontal(id="controls"):
                     yield Button("Start Dialing", id="start-btn", variant="primary")
                     yield Button("Stop", id="stop-btn", variant="error")
@@ -111,8 +124,12 @@ class VibeDialerApp(App):
         if not phone_number:
             return
 
+        # Get random mode setting from switch
+        random_switch = self.query_one("#random-mode-switch", Switch)
+        randomize = random_switch.value
+
         # Generate numbers to dial
-        numbers = self.dialer.generate_numbers(phone_number)
+        numbers = self.dialer.generate_numbers(phone_number, randomize=randomize)
 
         # For now, just show the first few as a demo
         # In a real implementation, this would be async and incremental
