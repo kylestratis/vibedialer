@@ -2,8 +2,18 @@
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Button, DataTable, Footer, Header, Input, Label, Switch
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    Static,
+    Switch,
+)
 
+from vibedialer.art import get_telephone_keypad
 from vibedialer.dialer import PhoneDialer
 
 
@@ -19,6 +29,13 @@ class VibeDialerApp(App):
         width: 100%;
         height: 100%;
         padding: 1;
+    }
+
+    #keypad-section {
+        height: auto;
+        padding: 0 1;
+        margin-bottom: 1;
+        align: center middle;
     }
 
     #input-section {
@@ -80,6 +97,10 @@ class VibeDialerApp(App):
         """Create child widgets for the app."""
         yield Header()
         with Container(id="main-container"):
+            # Display telephone keypad at the top
+            with Vertical(id="keypad-section"):
+                yield Static(get_telephone_keypad())
+
             with Vertical(id="input-section"):
                 yield Label("Enter phone number or partial number:")
                 yield Input(

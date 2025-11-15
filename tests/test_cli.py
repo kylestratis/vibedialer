@@ -56,3 +56,29 @@ def test_cli_dial_random_flag_in_help():
     assert result.exit_code == 0
     # Should show the random/sequential option
     assert "random" in result.stdout.lower() or "sequential" in result.stdout.lower()
+
+
+def test_cli_welcome_command_exists():
+    """Test that the welcome command exists."""
+    result = runner.invoke(app, ["welcome", "--help"])
+    assert result.exit_code == 0
+
+
+def test_cli_keypad_command_exists():
+    """Test that the keypad command exists."""
+    result = runner.invoke(app, ["keypad", "--help"])
+    assert result.exit_code == 0
+
+
+def test_cli_welcome_command_runs():
+    """Test that the welcome command runs without errors."""
+    result = runner.invoke(app, ["welcome"])
+    assert result.exit_code == 0
+
+
+def test_cli_keypad_command_runs():
+    """Test that the keypad command runs without errors."""
+    result = runner.invoke(app, ["keypad"])
+    assert result.exit_code == 0
+    # Should contain some numbers
+    assert any(str(i) in result.stdout for i in range(10))

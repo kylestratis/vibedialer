@@ -38,3 +38,13 @@ async def test_tui_has_random_mode_toggle():
         # Look for the widget by ID
         switch = app.query_one("#random-mode-switch")
         assert switch is not None
+
+
+@pytest.mark.asyncio
+async def test_tui_displays_keypad():
+    """Test that the TUI displays the telephone keypad."""
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Should have a keypad section
+        keypad_section = app.query_one("#keypad-section")
+        assert keypad_section is not None
