@@ -147,6 +147,7 @@ class VibeDialerApp(App):
         backend_kwargs: dict | None = None,
         storage_type: StorageType = StorageType.CSV,
         storage_kwargs: dict | None = None,
+        resume_numbers: list[str] | None = None,
         *args,
         **kwargs,
     ):
@@ -158,6 +159,7 @@ class VibeDialerApp(App):
         self.backend_kwargs = backend_kwargs or {}
         self.storage_type = storage_type
         self.storage_kwargs = storage_kwargs or {}
+        self.resume_numbers = resume_numbers
         self.dialer = PhoneDialer(
             backend_type=backend_type,
             storage_type=storage_type,
@@ -258,15 +260,21 @@ class VibeDialerApp(App):
         phone_input = self.query_one("#phone-input", Input)
         phone_number = phone_input.value.strip()
 
-        if not phone_number:
+        if not phone_number and not self.resume_numbers:
             return
 
         # Get random mode setting from switch
         random_switch = self.query_one("#random-mode-switch", Switch)
         randomize = random_switch.value
 
-        # Generate numbers to dial
-        numbers = self.dialer.generate_numbers(phone_number, randomize=randomize)
+        # Use resume numbers if available, otherwise generate
+        if self.resume_numbers:
+            numbers = self.resume_numbers
+            # Clear resume numbers after using them once
+            self.resume_numbers = None
+        else:
+            # Generate numbers to dial
+            numbers = self.dialer.generate_numbers(phone_number, randomize=randomize)
 
         # For now, just show the first few as a demo
         # In a real implementation, this would be async and incremental

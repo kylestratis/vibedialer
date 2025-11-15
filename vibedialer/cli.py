@@ -8,6 +8,7 @@ from rich.console import Console
 from vibedialer import __version__
 from vibedialer.art import display_keypad, display_welcome_screen
 from vibedialer.backends import BackendType
+from vibedialer.resume import prepare_resume
 from vibedialer.storage import StorageType
 from vibedialer.tui import VibeDialerApp
 
@@ -115,6 +116,27 @@ def dial(
             help="Output file for CSV or database for SQLite",
         ),
     ] = "",
+    resume_file: Annotated[
+        str,
+        typer.Option(
+            "--resume",
+            help="Resume from a previous session (CSV or SQLite file)",
+        ),
+    ] = "",
+    resume_prefix: Annotated[
+        str,
+        typer.Option(
+            "--resume-prefix",
+            help="Prefix to resume dialing (will infer if not provided)",
+        ),
+    ] = "",
+    infer_prefix: Annotated[
+        bool,
+        typer.Option(
+            "--infer-prefix",
+            help="Infer pattern from resume file and ask for confirmation",
+        ),
+    ] = False,
 ) -> None:
     """
     Dial a phone number or range of numbers.
@@ -159,6 +181,43 @@ def dial(
         elif storage_type == StorageType.SQLITE:
             storage_kwargs["database"] = output_file
 
+    # Handle resume mode
+    resume_numbers = None
+    if resume_file:
+        try:
+            # Prepare resume with optional prefix
+            resume_prefix_val = resume_prefix if resume_prefix else None
+
+            inferred_prefix, remaining, total, dialed = prepare_resume(
+                resume_file, resume_prefix_val, random
+            )
+
+            # If infer_prefix flag is set, ask for confirmation
+            if infer_prefix and not resume_prefix:
+                typer.echo(f"\nInferred pattern from {resume_file}: {inferred_prefix}")
+                typer.echo(f"  Total numbers in pattern: {total}")
+                typer.echo(f"  Already dialed: {dialed}")
+                typer.echo(f"  Remaining to dial: {len(remaining)}")
+                typer.echo()
+
+                confirm = typer.confirm("Continue with this pattern?")
+                if not confirm:
+                    typer.echo("Resume cancelled.")
+                    raise typer.Exit(0)
+
+            # Use the remaining numbers
+            resume_numbers = remaining
+            phone_number = inferred_prefix  # Set for display purposes
+
+            typer.echo(
+                f"\nResuming from {resume_file}: "
+                f"{len(remaining)} numbers remaining (pattern: {inferred_prefix})"
+            )
+
+        except (FileNotFoundError, ValueError) as e:
+            typer.echo(f"Error: {e}", err=True)
+            raise typer.Exit(1) from e
+
     if interactive:
         # Optionally show welcome screen
         if show_welcome:
@@ -173,6 +232,7 @@ def dial(
             backend_kwargs=backend_kwargs,
             storage_type=storage_type,
             storage_kwargs=storage_kwargs,
+            resume_numbers=resume_numbers,
         )
         tui_app.phone_number = phone_number
         tui_app.randomize = random
