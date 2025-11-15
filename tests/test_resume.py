@@ -27,7 +27,9 @@ def sample_csv_file():
         )
         f.write("555-234-5600,no_answer,2025-11-15T12:00:00,False,No answer,False,\n")
         f.write("555-234-5601,busy,2025-11-15T12:01:00,False,Busy,False,\n")
-        f.write("555-234-5602,modem,2025-11-15T12:02:00,True,Modem detected,True,modem\n")
+        f.write(
+            "555-234-5602,modem,2025-11-15T12:02:00,True,Modem detected,True,modem\n"
+        )
 
     yield csv_file
     Path(csv_file).unlink(missing_ok=True)

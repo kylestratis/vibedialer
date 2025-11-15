@@ -11,7 +11,7 @@ from vibedialer.backends import (
     create_backend,
 )
 from vibedialer.storage import ResultStorage, StorageType, create_storage
-from vibedialer.validation import CountryCode, PhoneNumberValidator, get_validator
+from vibedialer.validation import CountryCode, get_validator
 
 logger = logging.getLogger(__name__)
 
@@ -121,10 +121,10 @@ class PhoneDialer:
             # Already a full number, validate and return it formatted
             is_valid, error = self.validator.validate(clean_number)
             if not is_valid:
-                raise ValueError(
-                    f"Invalid phone number '{partial_number}': {error}"
-                )
-            formatted = self.validator.format_number(clean_number, include_country_code=False)
+                raise ValueError(f"Invalid phone number '{partial_number}': {error}")
+            formatted = self.validator.format_number(
+                clean_number, include_country_code=False
+            )
             return [formatted] if formatted else []
 
         # Generate all possible combinations for remaining digits

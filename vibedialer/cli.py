@@ -143,7 +143,10 @@ def dial(
         typer.Option(
             "--country-code",
             "-c",
-            help="Country code for phone number validation (1=USA/Canada, 44=UK, 49=Germany)",
+            help=(
+                "Country code for phone number validation "
+                "(1=USA/Canada, 44=UK, 49=Germany)"
+            ),
         ),
     ] = "1",
 ) -> None:
