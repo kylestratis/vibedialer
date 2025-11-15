@@ -1,0 +1,4 @@
+- Use test-driven development (TDD) - write tests for behaviors before writing behaviors, then ensure tests pass.
+- Use uv for managing virtual environments, adding dependencies, and running code and tests.
+- Use pytest for running tests and ruff for formatting and linting code.
+- Use conventional commits for commit messages (https://www.conventionalcommits.org/en/v1.0.0/#summary)
