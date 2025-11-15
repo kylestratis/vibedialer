@@ -25,9 +25,9 @@ def sample_csv_file():
         f.write(
             "phone_number,status,timestamp,success,message,carrier_detected,tone_type\n"
         )
-        f.write("555-1200,no_answer,2025-11-15T12:00:00,False,No answer,False,\n")
-        f.write("555-1201,busy,2025-11-15T12:01:00,False,Busy,False,\n")
-        f.write("555-1202,modem,2025-11-15T12:02:00,True,Modem detected,True,modem\n")
+        f.write("555-234-5600,no_answer,2025-11-15T12:00:00,False,No answer,False,\n")
+        f.write("555-234-5601,busy,2025-11-15T12:01:00,False,Busy,False,\n")
+        f.write("555-234-5602,modem,2025-11-15T12:02:00,True,Modem detected,True,modem\n")
 
     yield csv_file
     Path(csv_file).unlink(missing_ok=True)
@@ -45,21 +45,21 @@ def sample_sqlite_file():
             success=False,
             status="no_answer",
             message="No answer",
-            phone_number="555-1200",
+            phone_number="555-234-5600",
             timestamp="2025-11-15T12:00:00",
         ),
         DialResult(
             success=False,
             status="busy",
             message="Busy",
-            phone_number="555-1201",
+            phone_number="555-234-5601",
             timestamp="2025-11-15T12:01:00",
         ),
         DialResult(
             success=True,
             status="modem",
             message="Modem detected",
-            phone_number="555-1202",
+            phone_number="555-234-5602",
             timestamp="2025-11-15T12:02:00",
             carrier_detected=True,
             tone_type="modem",
@@ -80,9 +80,9 @@ def test_read_dialed_numbers_from_csv(sample_csv_file):
     numbers = read_dialed_numbers_from_csv(sample_csv_file)
 
     assert len(numbers) == 3
-    assert "555-1200" in numbers
-    assert "555-1201" in numbers
-    assert "555-1202" in numbers
+    assert "555-234-5600" in numbers
+    assert "555-234-5601" in numbers
+    assert "555-234-5602" in numbers
 
 
 def test_read_dialed_numbers_from_csv_nonexistent():
@@ -96,9 +96,9 @@ def test_read_dialed_numbers_from_sqlite(sample_sqlite_file):
     numbers = read_dialed_numbers_from_sqlite(sample_sqlite_file)
 
     assert len(numbers) == 3
-    assert "555-1200" in numbers
-    assert "555-1201" in numbers
-    assert "555-1202" in numbers
+    assert "555-234-5600" in numbers
+    assert "555-234-5601" in numbers
+    assert "555-234-5602" in numbers
 
 
 def test_read_dialed_numbers_from_sqlite_nonexistent():
@@ -112,7 +112,7 @@ def test_read_dialed_numbers_auto_detects_csv(sample_csv_file):
     numbers = read_dialed_numbers(sample_csv_file)
 
     assert len(numbers) == 3
-    assert "555-1200" in numbers
+    assert "555-234-5600" in numbers
 
 
 def test_read_dialed_numbers_auto_detects_sqlite(sample_sqlite_file):
@@ -120,7 +120,7 @@ def test_read_dialed_numbers_auto_detects_sqlite(sample_sqlite_file):
     numbers = read_dialed_numbers(sample_sqlite_file)
 
     assert len(numbers) == 3
-    assert "555-1200" in numbers
+    assert "555-234-5600" in numbers
 
 
 def test_read_dialed_numbers_unsupported_format():
@@ -135,26 +135,26 @@ def test_read_dialed_numbers_unsupported_format():
 
 def test_infer_pattern_simple():
     """Test inferring pattern from simple sequential numbers."""
-    numbers = {"555-1200", "555-1201", "555-1202", "555-1299"}
+    numbers = {"555-234-5600", "555-234-5601", "555-234-5602", "555-234-5699"}
     pattern = infer_pattern_from_numbers(numbers)
 
-    assert pattern == "555-12"
+    assert pattern == "555-234-56"
 
 
 def test_infer_pattern_full_range():
     """Test inferring pattern from full number range."""
-    numbers = {f"555-{i:04d}" for i in range(10000)}
+    numbers = {f"555-234-{i:04d}" for i in range(10000)}
     pattern = infer_pattern_from_numbers(numbers)
 
-    assert pattern == "555"
+    assert pattern == "555-234"
 
 
 def test_infer_pattern_partial_range():
     """Test inferring pattern from partial range."""
-    numbers = {"555-1234", "555-1235", "555-1250"}
+    numbers = {"555-234-5634", "555-234-5635", "555-234-5650"}
     pattern = infer_pattern_from_numbers(numbers)
 
-    assert pattern == "555-12"
+    assert pattern == "555-234-56"
 
 
 def test_infer_pattern_empty():
@@ -165,19 +165,19 @@ def test_infer_pattern_empty():
 
 def test_infer_pattern_single_number():
     """Test inferring pattern from single number."""
-    numbers = {"555-1234"}
+    numbers = {"555-234-5634"}
     pattern = infer_pattern_from_numbers(numbers)
 
-    # Single number gets trimmed to make a reasonable pattern
-    assert pattern == "555-12"
+    # Single number - pattern inference returns full number
+    assert pattern == "555-234-5634"
 
 
 def test_infer_pattern_scattered_numbers():
     """Test inferring pattern from scattered numbers."""
-    numbers = {"555-0000", "555-5555", "555-9999"}
+    numbers = {"555-234-0000", "555-234-5555", "555-234-9999"}
     pattern = infer_pattern_from_numbers(numbers)
 
-    assert pattern == "555"
+    assert pattern == "555-234"
 
 
 # Tests for calculating remaining numbers
@@ -185,21 +185,21 @@ def test_infer_pattern_scattered_numbers():
 
 def test_calculate_remaining_numbers():
     """Test calculating remaining numbers to dial."""
-    dialed = {"555-1200", "555-1201", "555-1202"}
-    remaining = calculate_remaining_numbers("555-12", dialed)
+    dialed = {"555-234-5600", "555-234-5601", "555-234-5602"}
+    remaining = calculate_remaining_numbers("555-234-56", dialed)
 
     assert len(remaining) == 97  # 100 - 3
-    assert "555-1200" not in remaining
-    assert "555-1201" not in remaining
-    assert "555-1202" not in remaining
-    assert "555-1203" in remaining
-    assert "555-1299" in remaining
+    assert "555-234-5600" not in remaining
+    assert "555-234-5601" not in remaining
+    assert "555-234-5602" not in remaining
+    assert "555-234-5603" in remaining
+    assert "555-234-5699" in remaining
 
 
 def test_calculate_remaining_numbers_all_dialed():
     """Test when all numbers have been dialed."""
-    dialed = {f"555-120{i}" for i in range(10)}
-    remaining = calculate_remaining_numbers("555-120", dialed)
+    dialed = {f"555-234-560{i}" for i in range(10)}
+    remaining = calculate_remaining_numbers("555-234-560", dialed)
 
     assert len(remaining) == 0
 
@@ -207,16 +207,16 @@ def test_calculate_remaining_numbers_all_dialed():
 def test_calculate_remaining_numbers_none_dialed():
     """Test when no numbers have been dialed."""
     dialed = set()
-    remaining = calculate_remaining_numbers("555-12", dialed)
+    remaining = calculate_remaining_numbers("555-234-56", dialed)
 
     assert len(remaining) == 100
 
 
 def test_calculate_remaining_numbers_randomize():
     """Test randomizing remaining numbers."""
-    dialed = {"555-1200"}
-    remaining1 = calculate_remaining_numbers("555-12", dialed, randomize=False)
-    remaining2 = calculate_remaining_numbers("555-12", dialed, randomize=True)
+    dialed = {"555-234-5600"}
+    remaining1 = calculate_remaining_numbers("555-234-56", dialed, randomize=False)
+    remaining2 = calculate_remaining_numbers("555-234-56", dialed, randomize=True)
 
     # Same set of numbers
     assert set(remaining1) == set(remaining2)
@@ -230,23 +230,23 @@ def test_calculate_remaining_numbers_randomize():
 def test_prepare_resume_with_prefix(sample_csv_file):
     """Test preparing resume with explicit prefix."""
     prefix, remaining, total, dialed = prepare_resume(
-        sample_csv_file, prefix="555-12", randomize=False
+        sample_csv_file, prefix="555-234-56", randomize=False
     )
 
-    assert prefix == "555-12"
+    assert prefix == "555-234-56"
     assert len(remaining) == 97  # 100 - 3
     assert total == 100
     assert dialed == 3
-    assert "555-1200" not in remaining
-    assert "555-1203" in remaining
+    assert "555-234-5600" not in remaining
+    assert "555-234-5603" in remaining
 
 
 def test_prepare_resume_infer_prefix(sample_csv_file):
     """Test preparing resume with inferred prefix."""
     prefix, remaining, total, dialed = prepare_resume(sample_csv_file, prefix=None)
 
-    assert prefix == "555-120"
-    assert len(remaining) == 7  # 10 - 3 (555-1200 through 555-1209)
+    assert prefix == "555-234-560"
+    assert len(remaining) == 7  # 10 - 3 (555-234-5600 through 555-234-5609)
     assert total == 10
     assert dialed == 3
 
@@ -254,10 +254,10 @@ def test_prepare_resume_infer_prefix(sample_csv_file):
 def test_prepare_resume_randomize(sample_csv_file):
     """Test preparing resume with randomization."""
     prefix1, remaining1, _, _ = prepare_resume(
-        sample_csv_file, prefix="555-12", randomize=False
+        sample_csv_file, prefix="555-234-56", randomize=False
     )
     prefix2, remaining2, _, _ = prepare_resume(
-        sample_csv_file, prefix="555-12", randomize=True
+        sample_csv_file, prefix="555-234-56", randomize=True
     )
 
     # Same prefix and set of numbers
@@ -270,10 +270,10 @@ def test_prepare_resume_randomize(sample_csv_file):
 def test_prepare_resume_with_sqlite(sample_sqlite_file):
     """Test preparing resume from SQLite database."""
     prefix, remaining, total, dialed = prepare_resume(
-        sample_sqlite_file, prefix="555-12"
+        sample_sqlite_file, prefix="555-234-56"
     )
 
-    assert prefix == "555-12"
+    assert prefix == "555-234-56"
     assert len(remaining) == 97
     assert total == 100
     assert dialed == 3
@@ -282,7 +282,7 @@ def test_prepare_resume_with_sqlite(sample_sqlite_file):
 def test_prepare_resume_nonexistent_file():
     """Test preparing resume from nonexistent file."""
     with pytest.raises(FileNotFoundError):
-        prepare_resume("nonexistent.csv", prefix="555-12")
+        prepare_resume("nonexistent.csv", prefix="555-234-56")
 
 
 def test_prepare_resume_empty_file():
@@ -295,7 +295,7 @@ def test_prepare_resume_empty_file():
 
     try:
         with pytest.raises(ValueError, match="No dialed numbers found"):
-            prepare_resume(csv_file, prefix="555-12")
+            prepare_resume(csv_file, prefix="555-234-56")
     finally:
         Path(csv_file).unlink(missing_ok=True)
 

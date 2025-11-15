@@ -11,6 +11,7 @@ from vibedialer.backends import BackendType
 from vibedialer.resume import prepare_resume
 from vibedialer.storage import StorageType
 from vibedialer.tui import VibeDialerApp
+from vibedialer.validation import CountryCode
 
 console = Console()
 
@@ -137,6 +138,14 @@ def dial(
             help="Infer pattern from resume file and ask for confirmation",
         ),
     ] = False,
+    country_code: Annotated[
+        str,
+        typer.Option(
+            "--country-code",
+            "-c",
+            help="Country code for phone number validation (1=USA/Canada, 44=UK, 49=Germany)",
+        ),
+    ] = "1",
 ) -> None:
     """
     Dial a phone number or range of numbers.
@@ -180,6 +189,18 @@ def dial(
             storage_kwargs["filename"] = output_file
         elif storage_type == StorageType.SQLITE:
             storage_kwargs["database"] = output_file
+
+    # Validate and prepare country code
+    country_code_val = country_code
+    try:
+        # Try to find matching CountryCode enum
+        for cc in CountryCode:
+            if cc.value == country_code:
+                country_code_val = cc
+                break
+    except Exception:
+        # If validation fails, let the dialer handle it
+        pass
 
     # Handle resume mode
     resume_numbers = None
@@ -233,6 +254,7 @@ def dial(
             storage_type=storage_type,
             storage_kwargs=storage_kwargs,
             resume_numbers=resume_numbers,
+            country_code=country_code_val,
         )
         tui_app.phone_number = phone_number
         tui_app.randomize = random

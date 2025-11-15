@@ -20,6 +20,7 @@ from vibedialer.art import get_telephone_keypad, get_telephone_keypad_with_highl
 from vibedialer.backends import BackendType
 from vibedialer.dialer import PhoneDialer
 from vibedialer.storage import StorageType
+from vibedialer.validation import CountryCode
 
 
 class VibeDialerApp(App):
@@ -150,6 +151,7 @@ class VibeDialerApp(App):
         storage_type: StorageType = StorageType.CSV,
         storage_kwargs: dict | None = None,
         resume_numbers: list[str] | None = None,
+        country_code: CountryCode | str = CountryCode.USA,
         *args,
         **kwargs,
     ):
@@ -162,9 +164,11 @@ class VibeDialerApp(App):
         self.storage_type = storage_type
         self.storage_kwargs = storage_kwargs or {}
         self.resume_numbers = resume_numbers
+        self.country_code = country_code
         self.dialer = PhoneDialer(
             backend_type=backend_type,
             storage_type=storage_type,
+            country_code=country_code,
             **{**self.backend_kwargs, **self.storage_kwargs},
         )
         self.title = "VibeDialer"
@@ -254,6 +258,7 @@ class VibeDialerApp(App):
             self.dialer = PhoneDialer(
                 backend_type=self.backend_type,
                 storage_type=self.storage_type,
+                country_code=self.country_code,
                 **{**self.backend_kwargs, **self.storage_kwargs},
             )
 
