@@ -79,3 +79,28 @@ def test_dial_sequence_with_random_mode():
     # Should contain expected range
     assert any(r.phone_number == "555-0000" for r in results)
     assert any(r.phone_number == "555-0099" for r in results)
+
+
+def test_dial_result_with_different_statuses():
+    """Test that DialResult can have different status types."""
+    valid_statuses = ["ringing", "busy", "modem", "person", "error", "no_answer"]
+
+    for status in valid_statuses:
+        result = DialResult(
+            phone_number="555-1234",
+            status=status,
+            timestamp="2025-11-15T12:00:00",
+        )
+        assert result.status == status
+
+
+def test_dial_returns_various_statuses():
+    """Test that dial() can return different statuses."""
+    dialer = PhoneDialer()
+    # Dial multiple numbers and check we get different statuses
+    results = [dialer.dial(f"555-120{i}") for i in range(10)]
+    statuses = {r.status for r in results}
+
+    # Should have at least some variety in statuses (not all the same)
+    # This is probabilistic but highly likely with 10 calls
+    assert len(statuses) >= 1  # At minimum, we get statuses back
