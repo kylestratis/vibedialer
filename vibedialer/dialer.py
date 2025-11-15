@@ -9,6 +9,7 @@ from vibedialer.backends import (
     TelephonyBackend,
     create_backend,
 )
+from vibedialer.storage import ResultStorage, StorageType, create_storage
 
 
 class PhoneDialer:
@@ -18,7 +19,9 @@ class PhoneDialer:
         self,
         backend: TelephonyBackend | None = None,
         backend_type: BackendType = BackendType.SIMULATION,
-        **backend_kwargs,
+        storage: ResultStorage | None = None,
+        storage_type: StorageType = StorageType.CSV,
+        **kwargs,
     ):
         """
         Initialize the phone dialer.
@@ -26,12 +29,42 @@ class PhoneDialer:
         Args:
             backend: Pre-configured backend instance (optional)
             backend_type: Type of backend to create if backend not provided
-            **backend_kwargs: Configuration for backend creation
+            storage: Pre-configured storage instance (optional)
+            storage_type: Type of storage to create if storage not provided
+            **kwargs: Backend and storage specific configuration
         """
+        # Separate backend and storage kwargs
+        backend_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k
+            in [
+                "port",
+                "baudrate",
+                "timeout",
+                "enable_audio_analysis",
+                "sip_server",
+                "username",
+                "password",
+                "relay_service_url",
+                "api_key",
+            ]
+        }
+        storage_kwargs = {
+            k: v for k, v in kwargs.items() if k in ["filename", "database"]
+        }
+
+        # Initialize backend
         if backend is not None:
             self.backend = backend
         else:
             self.backend = create_backend(backend_type, **backend_kwargs)
+
+        # Initialize storage
+        if storage is not None:
+            self.storage = storage
+        else:
+            self.storage = create_storage(storage_type, **storage_kwargs)
 
         self.results: list[DialResult] = []
         self._backend_connected = False
@@ -110,6 +143,20 @@ class PhoneDialer:
             self.backend.disconnect()
             self._backend_connected = False
 
+    def cleanup(self) -> None:
+        """
+        Clean up resources and save any pending data.
+
+        This should be called when shutting down the dialer.
+        """
+        # Flush and close storage
+        if self.storage:
+            self.storage.flush()
+            self.storage.close()
+
+        # Disconnect backend
+        self.disconnect()
+
     def dial(self, phone_number: str) -> DialResult:
         """
         Dial a phone number and return the result.
@@ -137,6 +184,9 @@ class PhoneDialer:
         # Add timestamp and phone number to result
         result.phone_number = phone_number
         result.timestamp = datetime.now().isoformat()
+
+        # Save result to storage
+        self.storage.save_result(result)
 
         self.results.append(result)
         return result

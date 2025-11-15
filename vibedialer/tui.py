@@ -17,6 +17,7 @@ from textual.widgets import (
 from vibedialer.art import get_telephone_keypad
 from vibedialer.backends import BackendType
 from vibedialer.dialer import PhoneDialer
+from vibedialer.storage import StorageType
 
 
 class VibeDialerApp(App):
@@ -144,6 +145,8 @@ class VibeDialerApp(App):
         self,
         backend_type: BackendType = BackendType.SIMULATION,
         backend_kwargs: dict | None = None,
+        storage_type: StorageType = StorageType.CSV,
+        storage_kwargs: dict | None = None,
         *args,
         **kwargs,
     ):
@@ -153,9 +156,12 @@ class VibeDialerApp(App):
         self.randomize = False
         self.backend_type = backend_type
         self.backend_kwargs = backend_kwargs or {}
+        self.storage_type = storage_type
+        self.storage_kwargs = storage_kwargs or {}
         self.dialer = PhoneDialer(
             backend_type=backend_type,
-            **self.backend_kwargs,
+            storage_type=storage_type,
+            **{**self.backend_kwargs, **self.storage_kwargs},
         )
         self.title = "VibeDialer"
 
@@ -217,6 +223,11 @@ class VibeDialerApp(App):
         table.add_columns("Phone Number", "Status", "Timestamp")
         table.cursor_type = "row"
 
+    def on_unmount(self) -> None:
+        """Clean up when the app unmounts."""
+        if hasattr(self, "dialer") and self.dialer:
+            self.dialer.cleanup()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press events."""
         if event.button.id == "start-btn":
@@ -229,16 +240,17 @@ class VibeDialerApp(App):
     def on_select_changed(self, event: Select.Changed) -> None:
         """Handle backend selection changes."""
         if event.select.id == "backend-select" and event.value is not Select.BLANK:
-            # Disconnect old backend
-            self.dialer.disconnect()
+            # Clean up old dialer
+            self.dialer.cleanup()
 
             # Update backend type
             self.backend_type = event.value
 
-            # Create new dialer with new backend
+            # Create new dialer with new backend and storage
             self.dialer = PhoneDialer(
                 backend_type=self.backend_type,
-                **self.backend_kwargs,
+                storage_type=self.storage_type,
+                **{**self.backend_kwargs, **self.storage_kwargs},
             )
 
     def start_dialing(self) -> None:
