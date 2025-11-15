@@ -1,5 +1,6 @@
 """Core dialer logic for VibeDialer."""
 
+import logging
 import random
 from datetime import datetime
 
@@ -10,6 +11,9 @@ from vibedialer.backends import (
     create_backend,
 )
 from vibedialer.storage import ResultStorage, StorageType, create_storage
+from vibedialer.validation import CountryCode, get_validator
+
+logger = logging.getLogger(__name__)
 
 
 class PhoneDialer:
@@ -21,6 +25,7 @@ class PhoneDialer:
         backend_type: BackendType = BackendType.SIMULATION,
         storage: ResultStorage | None = None,
         storage_type: StorageType = StorageType.CSV,
+        country_code: CountryCode | str = CountryCode.USA,
         **kwargs,
     ):
         """
@@ -31,6 +36,7 @@ class PhoneDialer:
             backend_type: Type of backend to create if backend not provided
             storage: Pre-configured storage instance (optional)
             storage_type: Type of storage to create if storage not provided
+            country_code: Country code for phone number validation (default: USA)
             **kwargs: Backend and storage specific configuration
         """
         # Separate backend and storage kwargs
@@ -66,6 +72,10 @@ class PhoneDialer:
         else:
             self.storage = create_storage(storage_type, **storage_kwargs)
 
+        # Initialize phone number validator
+        self.validator = get_validator(country_code)
+        self.country_code = self.validator.country_code
+
         self.results: list[DialResult] = []
         self._backend_connected = False
 
@@ -75,24 +85,47 @@ class PhoneDialer:
         """
         Generate phone numbers from a partial number.
 
+        Validates the pattern and generates all possible combinations.
+        For USA/NANP, generates 10-digit numbers (NXX-NXX-XXXX).
+
         Args:
             partial_number: A partial phone number (e.g., "555-12")
             randomize: If True, return numbers in random order. If False, sequential.
 
         Returns:
             List of generated phone numbers
-        """
-        # Remove any formatting characters for processing
-        clean_number = partial_number.replace("-", "").replace(" ", "")
 
-        # Determine how many digits we need to add
-        # For simplicity, assuming we want 7-digit local numbers (NXX-XXXX format)
-        target_length = 7
+        Raises:
+            ValueError: If the pattern is invalid for the country
+        """
+        # Validate the pattern first
+        is_valid, error = self.validator.validate_pattern(partial_number)
+        if not is_valid:
+            raise ValueError(
+                f"Invalid phone number pattern '{partial_number}': {error}"
+            )
+
+        # Remove any formatting characters for processing
+        clean_number = self.validator.normalize_number(partial_number)
+
+        # Determine target length based on country
+        # For USA/NANP, we want 10 digits (area code + exchange + subscriber)
+        if self.country_code in (CountryCode.USA, CountryCode.CANADA):
+            target_length = 10
+        else:
+            target_length = self.validator.format_spec.max_length
+
         current_length = len(clean_number)
 
         if current_length >= target_length:
-            # Already a full number, return it formatted
-            return [self._format_number(clean_number[:target_length])]
+            # Already a full number, validate and return it formatted
+            is_valid, error = self.validator.validate(clean_number)
+            if not is_valid:
+                raise ValueError(f"Invalid phone number '{partial_number}': {error}")
+            formatted = self.validator.format_number(
+                clean_number, include_country_code=False
+            )
+            return [formatted] if formatted else []
 
         # Generate all possible combinations for remaining digits
         digits_needed = target_length - current_length
@@ -103,8 +136,22 @@ class PhoneDialer:
             # Pad the number with zeros to get the right length
             suffix = str(i).zfill(digits_needed)
             full_number = clean_number + suffix
-            formatted = self._format_number(full_number)
-            numbers.append(formatted)
+
+            # Validate each generated number
+            is_valid, error = self.validator.validate(full_number)
+            if is_valid:
+                # Format using validator
+                formatted = self.validator.format_number(
+                    full_number, include_country_code=False
+                )
+                if formatted:
+                    numbers.append(formatted)
+            else:
+                logger.debug(f"Skipping invalid number {full_number}: {error}")
+
+        logger.info(
+            f"Generated {len(numbers)} valid numbers from pattern '{partial_number}'"
+        )
 
         # Randomize if requested
         if randomize:
@@ -114,7 +161,9 @@ class PhoneDialer:
 
     def _format_number(self, number: str) -> str:
         """
-        Format a phone number as NXX-XXXX.
+        Format a phone number using the validator.
+
+        Note: This method is deprecated. Use validator.format_number() directly.
 
         Args:
             number: Unformatted phone number string
@@ -122,9 +171,8 @@ class PhoneDialer:
         Returns:
             Formatted phone number
         """
-        if len(number) >= 7:
-            return f"{number[:3]}-{number[3:7]}"
-        return number
+        formatted = self.validator.format_number(number, include_country_code=False)
+        return formatted if formatted else number
 
     def connect(self) -> bool:
         """
