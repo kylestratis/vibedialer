@@ -48,3 +48,26 @@ async def test_tui_displays_keypad():
         # Should have a keypad section
         keypad_section = app.query_one("#keypad-section")
         assert keypad_section is not None
+
+
+@pytest.mark.asyncio
+async def test_tui_has_status_display():
+    """Test that the TUI has a status display section."""
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Should have a status display section
+        status_section = app.query_one("#status-section")
+        assert status_section is not None
+
+
+@pytest.mark.asyncio
+async def test_tui_status_display_has_labels():
+    """Test that status display has current number and status labels."""
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Should have labels for current number and status
+        current_number_label = app.query_one("#current-number")
+        assert current_number_label is not None
+
+        status_label = app.query_one("#current-status")
+        assert status_label is not None

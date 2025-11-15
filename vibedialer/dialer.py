@@ -95,11 +95,50 @@ class PhoneDialer:
         # interface with telephony hardware/software
         timestamp = datetime.now().isoformat()
 
+        # Simulate different status outcomes
+        # Weighted probabilities for realistic war dialing
+        statuses = [
+            ("no_answer", 0.40),  # 40% - Most numbers won't answer
+            ("busy", 0.20),  # 20% - Busy signal
+            ("person", 0.15),  # 15% - Person answers
+            ("modem", 0.10),  # 10% - Modem/fax detected
+            ("error", 0.10),  # 10% - Invalid number or error
+            ("ringing", 0.05),  # 5% - Still ringing (timeout)
+        ]
+
+        # Select status based on weighted probabilities
+        rand = random.random()
+        cumulative = 0
+        selected_status = "no_answer"
+
+        for status, probability in statuses:
+            cumulative += probability
+            if rand < cumulative:
+                selected_status = status
+                break
+
+        # Create metadata based on status
+        metadata = {}
+        if selected_status == "error":
+            error_codes = [
+                "Invalid number",
+                "Number not in service",
+                "Circuit busy",
+                "Call cannot be completed",
+            ]
+            metadata["message"] = random.choice(error_codes)
+        elif selected_status == "modem":
+            metadata["message"] = "Modem carrier detected"
+        elif selected_status == "person":
+            metadata["message"] = "Human voice detected"
+        else:
+            metadata["message"] = f"Status: {selected_status}"
+
         result = DialResult(
             phone_number=phone_number,
-            status="simulated",
+            status=selected_status,
             timestamp=timestamp,
-            metadata={"message": "This is a simulated dial"},
+            metadata=metadata,
         )
 
         self.results.append(result)
