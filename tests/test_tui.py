@@ -27,3 +27,14 @@ async def test_tui_app_mounts():
     async with app.run_test():
         # App should start successfully
         assert app.is_running
+
+
+@pytest.mark.asyncio
+async def test_tui_has_random_mode_toggle():
+    """Test that the TUI has a toggle for random/sequential mode."""
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Should have a switch or checkbox for random mode
+        # Look for the widget by ID
+        switch = app.query_one("#random-mode-switch")
+        assert switch is not None

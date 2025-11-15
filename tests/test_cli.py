@@ -34,3 +34,25 @@ def test_cli_dial_with_phone_number():
     result = runner.invoke(app, ["dial", "555-1234", "--no-interactive"])
     # Should not crash, but might not do much yet
     assert result.exit_code == 0
+
+
+def test_cli_dial_with_random_flag():
+    """Test that the --random flag is accepted."""
+    result = runner.invoke(app, ["dial", "555-1234", "--no-interactive", "--random"])
+    assert result.exit_code == 0
+
+
+def test_cli_dial_with_sequential_flag():
+    """Test that the --sequential flag is accepted."""
+    result = runner.invoke(
+        app, ["dial", "555-1234", "--no-interactive", "--sequential"]
+    )
+    assert result.exit_code == 0
+
+
+def test_cli_dial_random_flag_in_help():
+    """Test that random/sequential options appear in help."""
+    result = runner.invoke(app, ["dial", "--help"])
+    assert result.exit_code == 0
+    # Should show the random/sequential option
+    assert "random" in result.stdout.lower() or "sequential" in result.stdout.lower()

@@ -1,6 +1,5 @@
 """Command-line interface for VibeDialer."""
 
-
 from typing import Annotated
 
 import typer
@@ -53,21 +52,34 @@ def dial(
             help="Launch interactive TUI mode",
         ),
     ] = True,
+    random: Annotated[
+        bool,
+        typer.Option(
+            "--random/--sequential",
+            "-r/-s",
+            help=(
+                "Dial numbers in random order (--random) or "
+                "sequential order (--sequential)"
+            ),
+        ),
+    ] = False,
 ) -> None:
     """
     Dial a phone number or range of numbers.
 
     If a partial number is provided, VibeDialer will generate and dial
-    all possible numbers sequentially.
+    all possible numbers in either sequential or random order.
     """
     if interactive:
         # Launch the TUI
         tui_app = VibeDialerApp()
         tui_app.phone_number = phone_number
+        tui_app.randomize = random
         tui_app.run()
     else:
         # Simple non-interactive mode (placeholder for now)
-        typer.echo(f"Dialing {phone_number}...")
+        mode = "random" if random else "sequential"
+        typer.echo(f"Dialing {phone_number} in {mode} order...")
         typer.echo("Non-interactive mode not yet implemented.")
 
 
