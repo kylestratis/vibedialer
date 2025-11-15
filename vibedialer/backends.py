@@ -201,10 +201,19 @@ def create_backend(backend_type: BackendType, **kwargs) -> TelephonyBackend:
     elif backend_type == BackendType.VOIP:
         from vibedialer.voip import VoIPBackend
 
-        sip_server = kwargs.get("sip_server", "")
-        username = kwargs.get("username", "")
-        password = kwargs.get("password", "")
-        return VoIPBackend(sip_server=sip_server, username=username, password=password)
+        # Twilio VoIP backend
+        account_sid = kwargs.get("account_sid", "")
+        auth_token = kwargs.get("auth_token", "")
+        from_number = kwargs.get("from_number", "")
+        timeout = kwargs.get("timeout", 30)
+        twiml_url = kwargs.get("twiml_url")
+        return VoIPBackend(
+            account_sid=account_sid,
+            auth_token=auth_token,
+            from_number=from_number,
+            timeout=timeout,
+            twiml_url=twiml_url,
+        )
 
     elif backend_type == BackendType.IP_RELAY:
         from vibedialer.iprelay import IPRelayBackend

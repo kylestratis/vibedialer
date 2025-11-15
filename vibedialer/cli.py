@@ -101,6 +101,34 @@ def dial(
             help="Baud rate for modem connection",
         ),
     ] = 57600,
+    twilio_account_sid: Annotated[
+        str,
+        typer.Option(
+            "--twilio-account-sid",
+            help="Twilio Account SID (for VoIP backend)",
+        ),
+    ] = "",
+    twilio_auth_token: Annotated[
+        str,
+        typer.Option(
+            "--twilio-auth-token",
+            help="Twilio Auth Token (for VoIP backend)",
+        ),
+    ] = "",
+    twilio_from_number: Annotated[
+        str,
+        typer.Option(
+            "--twilio-from-number",
+            help="Twilio phone number to call from (E.164 format, e.g., +15551234567)",
+        ),
+    ] = "",
+    twilio_twiml_url: Annotated[
+        str,
+        typer.Option(
+            "--twilio-twiml-url",
+            help="Optional TwiML URL for call instructions",
+        ),
+    ] = "",
     storage: Annotated[
         str,
         typer.Option(
@@ -184,6 +212,23 @@ def dial(
             "port": modem_port,
             "baudrate": modem_baudrate,
         }
+    elif backend_type == BackendType.VOIP:
+        # Twilio VoIP backend
+        if not twilio_account_sid or not twilio_auth_token or not twilio_from_number:
+            typer.echo(
+                "Error: VoIP backend requires --twilio-account-sid, "
+                "--twilio-auth-token, and --twilio-from-number",
+                err=True,
+            )
+            raise typer.Exit(1)
+
+        backend_kwargs = {
+            "account_sid": twilio_account_sid,
+            "auth_token": twilio_auth_token,
+            "from_number": twilio_from_number,
+        }
+        if twilio_twiml_url:
+            backend_kwargs["twiml_url"] = twilio_twiml_url
 
     # Prepare storage kwargs
     storage_kwargs = {}

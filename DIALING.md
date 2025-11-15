@@ -5,6 +5,7 @@ This guide explains how to dial phone numbers and ranges using VibeDialer, inclu
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [Telephony Backends](#telephony-backends)
 - [Phone Number Formats](#phone-number-formats)
 - [Range Dialing](#range-dialing)
 - [Country Code Support](#country-code-support)
@@ -32,6 +33,114 @@ vibedialer dial 555-234-56
 # Dial UK numbers
 vibedialer dial --country-code 44 2012345678
 ```
+
+## Telephony Backends
+
+VibeDialer supports multiple telephony backends for actually placing calls. Choose the backend that best suits your needs.
+
+### Simulation (Default)
+
+The simulation backend is perfect for testing and development. It simulates dial results without making real calls.
+
+```bash
+# Simulation is the default
+vibedialer dial 555-234-56
+
+# Or explicitly specify
+vibedialer dial --backend simulation 555-234-56
+```
+
+**Features**:
+- No real calls made
+- Randomized realistic responses
+- Various statuses (busy, no answer, modem, person)
+- Free to use
+
+### Twilio VoIP
+
+Make real phone calls using Twilio's Voice API. Requires a Twilio account.
+
+#### Setup
+
+1. Create a Twilio account at [https://www.twilio.com/](https://www.twilio.com/)
+2. Get your Account SID and Auth Token from the Twilio Console
+3. Purchase or verify a Twilio phone number
+4. Use the credentials with VibeDialer
+
+#### Usage
+
+```bash
+vibedialer dial \
+  --backend voip \
+  --twilio-account-sid "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  --twilio-auth-token "your_auth_token_here" \
+  --twilio-from-number "+15551234567" \
+  555-234-56
+```
+
+**Features**:
+- Real phone calls via Twilio
+- Carrier detection (modem vs voice)
+- Call duration tracking
+- Detailed call logs
+- Pay-per-use pricing
+
+**Optional Parameters**:
+- `--twilio-twiml-url`: Custom TwiML URL for call instructions (default uses Twilio demo)
+
+#### Modem Carrier Detection
+
+Twilio VoIP backend attempts to detect modem carriers by analyzing call duration:
+- Calls lasting less than 3 seconds are flagged as potential modem carriers
+- Modems typically disconnect quickly after handshake
+- Voice calls usually last longer
+
+#### Pricing
+
+Twilio charges per minute for outbound calls. Costs vary by destination:
+- **USA**: ~$0.013/min
+- **Canada**: ~$0.013/min
+- **UK**: ~$0.024/min
+- **Other countries**: Varies
+
+Visit [Twilio Pricing](https://www.twilio.com/voice/pricing) for current rates.
+
+⚠️ **Important**: War dialing can incur significant costs. Always:
+- Start with small test ranges
+- Monitor your Twilio usage dashboard
+- Set up billing alerts
+- Use simulation mode for testing
+
+### Modem
+
+Use a physical Hayes-compatible modem connected to your computer.
+
+```bash
+vibedialer dial \
+  --backend modem \
+  --modem-port /dev/ttyUSB0 \
+  --modem-baudrate 57600 \
+  555-234-56
+```
+
+**Features**:
+- Direct modem connection
+- Audio carrier detection
+- Modem tone analysis
+- No per-call costs (only phone line charges)
+
+**Requirements**:
+- Hayes-compatible modem
+- Serial port connection (USB-to-Serial adapter supported)
+- Active phone line
+
+### Backend Comparison
+
+| Backend    | Real Calls | Cost        | Setup Complexity | Carrier Detection |
+|------------|------------|-------------|------------------|-------------------|
+| Simulation | No         | Free        | None             | Simulated         |
+| Twilio VoIP| Yes        | Pay-per-use | Easy             | Duration-based    |
+| Modem      | Yes        | Phone line  | Moderate         | Audio analysis    |
 
 ## Phone Number Formats
 
