@@ -7,6 +7,7 @@ from rich.console import Console
 
 from vibedialer import __version__
 from vibedialer.art import display_keypad, display_welcome_screen
+from vibedialer.backends import BackendType
 from vibedialer.tui import VibeDialerApp
 
 console = Console()
@@ -75,6 +76,28 @@ def dial(
             help="Show welcome screen before launching TUI",
         ),
     ] = False,
+    backend: Annotated[
+        str,
+        typer.Option(
+            "--backend",
+            "-b",
+            help="Telephony backend to use (modem, voip, iprelay, simulation)",
+        ),
+    ] = "simulation",
+    modem_port: Annotated[
+        str,
+        typer.Option(
+            "--modem-port",
+            help="Serial port for modem backend (e.g., /dev/ttyUSB0, COM1)",
+        ),
+    ] = "/dev/ttyUSB0",
+    modem_baudrate: Annotated[
+        int,
+        typer.Option(
+            "--modem-baudrate",
+            help="Baud rate for modem connection",
+        ),
+    ] = 57600,
 ) -> None:
     """
     Dial a phone number or range of numbers.
@@ -82,6 +105,25 @@ def dial(
     If a partial number is provided, VibeDialer will generate and dial
     all possible numbers in either sequential or random order.
     """
+    # Parse backend type
+    try:
+        backend_type = BackendType(backend.lower())
+    except ValueError as e:
+        typer.echo(
+            f"Error: Invalid backend '{backend}'. "
+            f"Choose from: modem, voip, iprelay, simulation",
+            err=True,
+        )
+        raise typer.Exit(1) from e
+
+    # Prepare backend kwargs
+    backend_kwargs = {}
+    if backend_type == BackendType.MODEM:
+        backend_kwargs = {
+            "port": modem_port,
+            "baudrate": modem_baudrate,
+        }
+
     if interactive:
         # Optionally show welcome screen
         if show_welcome:
@@ -91,7 +133,10 @@ def dial(
             time.sleep(2)  # Brief pause to show the welcome screen
 
         # Launch the TUI
-        tui_app = VibeDialerApp()
+        tui_app = VibeDialerApp(
+            backend_type=backend_type,
+            backend_kwargs=backend_kwargs,
+        )
         tui_app.phone_number = phone_number
         tui_app.randomize = random
         tui_app.run()

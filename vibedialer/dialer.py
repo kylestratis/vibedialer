@@ -1,26 +1,40 @@
 """Core dialer logic for VibeDialer."""
 
 import random
-from dataclasses import dataclass
 from datetime import datetime
 
-
-@dataclass
-class DialResult:
-    """Result from dialing a phone number."""
-
-    phone_number: str
-    status: str  # e.g., "connected", "busy", "no_answer", "error"
-    timestamp: str
-    metadata: dict | None = None
+from vibedialer.backends import (
+    BackendType,
+    DialResult,
+    TelephonyBackend,
+    create_backend,
+)
 
 
 class PhoneDialer:
     """Core phone dialer that generates and dials phone numbers."""
 
-    def __init__(self):
-        """Initialize the phone dialer."""
+    def __init__(
+        self,
+        backend: TelephonyBackend | None = None,
+        backend_type: BackendType = BackendType.SIMULATION,
+        **backend_kwargs,
+    ):
+        """
+        Initialize the phone dialer.
+
+        Args:
+            backend: Pre-configured backend instance (optional)
+            backend_type: Type of backend to create if backend not provided
+            **backend_kwargs: Configuration for backend creation
+        """
+        if backend is not None:
+            self.backend = backend
+        else:
+            self.backend = create_backend(backend_type, **backend_kwargs)
+
         self.results: list[DialResult] = []
+        self._backend_connected = False
 
     def generate_numbers(
         self, partial_number: str, randomize: bool = False
@@ -79,11 +93,26 @@ class PhoneDialer:
             return f"{number[:3]}-{number[3:7]}"
         return number
 
+    def connect(self) -> bool:
+        """
+        Connect to the telephony backend.
+
+        Returns:
+            True if connection successful, False otherwise
+        """
+        if not self._backend_connected:
+            self._backend_connected = self.backend.connect()
+        return self._backend_connected
+
+    def disconnect(self) -> None:
+        """Disconnect from the telephony backend."""
+        if self._backend_connected:
+            self.backend.disconnect()
+            self._backend_connected = False
+
     def dial(self, phone_number: str) -> DialResult:
         """
         Dial a phone number and return the result.
-
-        This is a placeholder implementation that simulates dialing.
 
         Args:
             phone_number: The phone number to dial
@@ -91,55 +120,23 @@ class PhoneDialer:
         Returns:
             DialResult with the outcome
         """
-        # Placeholder: In a real implementation, this would actually
-        # interface with telephony hardware/software
-        timestamp = datetime.now().isoformat()
+        # Ensure backend is connected
+        if not self._backend_connected:
+            if not self.connect():
+                return DialResult(
+                    success=False,
+                    status="error",
+                    message="Failed to connect to backend",
+                    phone_number=phone_number,
+                    timestamp=datetime.now().isoformat(),
+                )
 
-        # Simulate different status outcomes
-        # Weighted probabilities for realistic war dialing
-        statuses = [
-            ("no_answer", 0.40),  # 40% - Most numbers won't answer
-            ("busy", 0.20),  # 20% - Busy signal
-            ("person", 0.15),  # 15% - Person answers
-            ("modem", 0.10),  # 10% - Modem/fax detected
-            ("error", 0.10),  # 10% - Invalid number or error
-            ("ringing", 0.05),  # 5% - Still ringing (timeout)
-        ]
+        # Use backend to dial
+        result = self.backend.dial(phone_number)
 
-        # Select status based on weighted probabilities
-        rand = random.random()
-        cumulative = 0
-        selected_status = "no_answer"
-
-        for status, probability in statuses:
-            cumulative += probability
-            if rand < cumulative:
-                selected_status = status
-                break
-
-        # Create metadata based on status
-        metadata = {}
-        if selected_status == "error":
-            error_codes = [
-                "Invalid number",
-                "Number not in service",
-                "Circuit busy",
-                "Call cannot be completed",
-            ]
-            metadata["message"] = random.choice(error_codes)
-        elif selected_status == "modem":
-            metadata["message"] = "Modem carrier detected"
-        elif selected_status == "person":
-            metadata["message"] = "Human voice detected"
-        else:
-            metadata["message"] = f"Status: {selected_status}"
-
-        result = DialResult(
-            phone_number=phone_number,
-            status=selected_status,
-            timestamp=timestamp,
-            metadata=metadata,
-        )
+        # Add timestamp and phone number to result
+        result.phone_number = phone_number
+        result.timestamp = datetime.now().isoformat()
 
         self.results.append(result)
         return result

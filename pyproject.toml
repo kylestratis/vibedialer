@@ -5,6 +5,7 @@ description = "A war dialer TUI application for sequential phone number dialing"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "pyserial>=3.5",
     "textual>=6.6.0",
     "typer>=0.20.0",
 ]
