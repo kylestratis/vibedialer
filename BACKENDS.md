@@ -53,10 +53,14 @@ vibedialer dial 555-12 --backend modem --modem-baudrate 115200
 
 **Response Codes:**
 - `CONNECT` - Modem carrier detected
+- `CONNECT 2400` - Modem carrier at 2400 bps
+- `CONNECT 28800/ARQ/V34` - Modem with protocol details
 - `BUSY` - Line busy
 - `NO CARRIER` - No answer/hung up
 - `NO DIAL TONE` - Phone line problem
+- `VOICE` - Voice detected (on some modems)
 - `ERROR` - Command error
+- `RING` - Phone ringing (counted automatically)
 
 **Linux Serial Port Permissions:**
 ```bash
@@ -105,6 +109,75 @@ The IP relay backend is a placeholder and **should not be used** for war dialing
 ```bash
 # This will fail with an error message
 vibedialer dial 555-12 --backend ip-relay
+```
+
+## Enhanced Modem Features
+
+The modem backend includes several advanced detection and analysis features:
+
+### Connection Speed Parsing
+
+The modem backend automatically parses connection speed and protocol information from CONNECT responses:
+
+```
+CONNECT 2400          → "Modem carrier at 2400 bps"
+CONNECT 28800/ARQ/V34 → "Modem carrier at 28800 bps (ARQ/V34)"
+CONNECT 33600/V.34    → "Modem carrier at 33600 bps (V.34)"
+```
+
+### Ring Counting
+
+The backend automatically counts RING responses and includes this information in results:
+
+```
+NO CARRIER (after 5 rings)  → "No carrier after 5 rings"
+BUSY (after 3 rings)        → "Busy after 3 rings"
+Timeout with rings          → "No answer after 8 rings"
+```
+
+### Carrier Type Detection
+
+The modem backend can distinguish between different carrier types:
+
+- **Modem/Data**: Standard modem carriers (V.21, V.22, V.32, V.34, V.90, V.92)
+- **Fax**: Fax machines (detected via FAX or +FCO responses)
+- **Voice**: Voice calls (on modems that support VOICE detection)
+
+### Audio Tone Analysis (Framework)
+
+The modem backend includes a framework for audio frequency analysis:
+
+```bash
+# Enable audio analysis (stub - not yet implemented)
+vibedialer dial 555-12 --backend modem --enable-audio-analysis
+```
+
+When fully implemented, this would analyze audio frequencies to distinguish:
+- Fax CNG tone: ~1100 Hz
+- Fax CED tone: ~2100 Hz
+- Modem carrier: 1650-2400 Hz
+- Voice: Broad spectrum 300-3400 Hz
+
+**Note:** Audio analysis is currently a stub and returns None. Implementation would require pyaudio and scipy.
+
+## Backend Switching
+
+### In TUI
+
+The TUI includes a backend selector dropdown that allows switching backends on the fly:
+
+1. Launch TUI: `vibedialer dial 555-12 --interactive`
+2. Use the "Backend:" dropdown to select your preferred backend
+3. Options: Simulation, Modem, VoIP, IP Relay
+4. The backend will be switched immediately
+
+### In CLI
+
+Specify backend with the `--backend` flag:
+
+```bash
+vibedialer dial 555-12 --backend modem
+vibedialer dial 555-12 --backend simulation
 ```
 
 ## Configuration

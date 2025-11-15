@@ -24,6 +24,8 @@ class DialResult:
     message: str
     carrier_detected: bool = False
     tone_type: str | None = None  # "modem", "fax", "voice", etc.
+    phone_number: str = ""
+    timestamp: str = ""
 
 
 class TelephonyBackend(ABC):

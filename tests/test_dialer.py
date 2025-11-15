@@ -1,6 +1,7 @@
 """Tests for the dialer core logic."""
 
-from vibedialer.dialer import DialResult, PhoneDialer
+from vibedialer.backends import BackendType, DialResult
+from vibedialer.dialer import PhoneDialer
 
 
 def test_phone_dialer_initialization():
@@ -31,13 +32,17 @@ def test_generate_phone_numbers_from_full():
 def test_dial_result_creation():
     """Test creating a DialResult."""
     result = DialResult(
+        success=True,
+        status="modem",
+        message="Modem carrier detected",
         phone_number="555-1234",
-        status="connected",
         timestamp="2025-11-15T12:00:00",
     )
     assert result.phone_number == "555-1234"
-    assert result.status == "connected"
+    assert result.status == "modem"
     assert result.timestamp == "2025-11-15T12:00:00"
+    assert result.message == "Modem carrier detected"
+    assert result.success is True
 
 
 def test_generate_numbers_sequential_order():
@@ -87,8 +92,10 @@ def test_dial_result_with_different_statuses():
 
     for status in valid_statuses:
         result = DialResult(
-            phone_number="555-1234",
+            success=(status in ["modem", "person"]),
             status=status,
+            message=f"Test {status}",
+            phone_number="555-1234",
             timestamp="2025-11-15T12:00:00",
         )
         assert result.status == status
@@ -104,3 +111,53 @@ def test_dial_returns_various_statuses():
     # Should have at least some variety in statuses (not all the same)
     # This is probabilistic but highly likely with 10 calls
     assert len(statuses) >= 1  # At minimum, we get statuses back
+
+
+def test_phone_dialer_with_backend_type():
+    """Test creating PhoneDialer with specific backend type."""
+    dialer = PhoneDialer(backend_type=BackendType.SIMULATION)
+    assert dialer is not None
+    assert dialer.backend is not None
+
+
+def test_phone_dialer_with_modem_backend():
+    """Test creating PhoneDialer with modem backend (won't connect without hardware)."""
+    dialer = PhoneDialer(backend_type=BackendType.MODEM, port="/dev/null")
+    assert dialer is not None
+    assert dialer.backend is not None
+
+
+def test_phone_dialer_backend_connection():
+    """Test backend connection methods."""
+    dialer = PhoneDialer(backend_type=BackendType.SIMULATION)
+    # Simulation backend should connect successfully
+    assert dialer.connect() is True
+    assert dialer._backend_connected is True
+
+    # Should be able to disconnect
+    dialer.disconnect()
+    assert dialer._backend_connected is False
+
+
+def test_phone_dialer_dial_with_backend():
+    """Test dialing with backend integration."""
+    dialer = PhoneDialer(backend_type=BackendType.SIMULATION)
+    result = dialer.dial("555-1234")
+
+    # Should have phone number and timestamp filled in
+    assert result.phone_number == "555-1234"
+    assert result.timestamp  # Should not be empty
+    assert result.status in ["ringing", "busy", "modem", "person", "error", "no_answer"]
+    assert result.message  # Should have a message
+
+
+def test_phone_dialer_auto_connect():
+    """Test that dialer auto-connects when dialing."""
+    dialer = PhoneDialer(backend_type=BackendType.SIMULATION)
+    # Don't manually connect
+    assert dialer._backend_connected is False
+
+    # Should auto-connect when dialing
+    result = dialer.dial("555-1234")
+    assert dialer._backend_connected is True
+    assert result.phone_number == "555-1234"

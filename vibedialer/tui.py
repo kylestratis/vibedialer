@@ -9,11 +9,13 @@ from textual.widgets import (
     Header,
     Input,
     Label,
+    Select,
     Static,
     Switch,
 )
 
 from vibedialer.art import get_telephone_keypad
+from vibedialer.backends import BackendType
 from vibedialer.dialer import PhoneDialer
 
 
@@ -81,6 +83,15 @@ class VibeDialerApp(App):
         margin-top: 1;
     }
 
+    #backend-section {
+        height: auto;
+        margin-top: 1;
+    }
+
+    Select {
+        width: 30;
+    }
+
     #status-section {
         height: auto;
         padding: 1;
@@ -129,12 +140,23 @@ class VibeDialerApp(App):
     TITLE = "VibeDialer"
     SUB_TITLE = "War Dialer TUI"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        backend_type: BackendType = BackendType.SIMULATION,
+        backend_kwargs: dict | None = None,
+        *args,
+        **kwargs,
+    ):
         """Initialize the VibeDialer app."""
         super().__init__(*args, **kwargs)
         self.phone_number = ""
         self.randomize = False
-        self.dialer = PhoneDialer()
+        self.backend_type = backend_type
+        self.backend_kwargs = backend_kwargs or {}
+        self.dialer = PhoneDialer(
+            backend_type=backend_type,
+            **self.backend_kwargs,
+        )
         self.title = "VibeDialer"
 
     def compose(self) -> ComposeResult:
@@ -162,6 +184,19 @@ class VibeDialerApp(App):
                     id="phone-input",
                     value=self.phone_number,
                 )
+                with Horizontal(id="backend-section"):
+                    yield Label("Backend:")
+                    yield Select(
+                        options=[
+                            ("Simulation", BackendType.SIMULATION),
+                            ("Modem", BackendType.MODEM),
+                            ("VoIP", BackendType.VOIP),
+                            ("IP Relay", BackendType.IP_RELAY),
+                        ],
+                        value=self.backend_type,
+                        id="backend-select",
+                        allow_blank=False,
+                    )
                 with Horizontal(id="mode-section"):
                     yield Label("Random Mode:")
                     yield Switch(id="random-mode-switch", value=self.randomize)
@@ -190,6 +225,21 @@ class VibeDialerApp(App):
             self.stop_dialing()
         elif event.button.id == "clear-btn":
             self.clear_results()
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        """Handle backend selection changes."""
+        if event.select.id == "backend-select" and event.value is not Select.BLANK:
+            # Disconnect old backend
+            self.dialer.disconnect()
+
+            # Update backend type
+            self.backend_type = event.value
+
+            # Create new dialer with new backend
+            self.dialer = PhoneDialer(
+                backend_type=self.backend_type,
+                **self.backend_kwargs,
+            )
 
     def start_dialing(self) -> None:
         """Start the dialing sequence."""
@@ -232,10 +282,11 @@ class VibeDialerApp(App):
             current_status_label.update(status_display)
             current_status_label.add_class(f"status-{result.status}")
 
-            # Add to results table
+            # Add to results table - show message in addition to status
+            display_message = f"{status_display} - {result.message}"
             table.add_row(
                 result.phone_number,
-                status_display,
+                display_message,
                 result.timestamp,
             )
 
