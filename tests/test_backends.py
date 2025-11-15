@@ -108,18 +108,19 @@ def test_create_backend_modem():
 
 
 def test_create_backend_voip():
-    """Test factory creates VoIP backend."""
+    """Test factory creates VoIP backend (Twilio)."""
     backend = create_backend(
         BackendType.VOIP,
-        sip_server="sip.example.com",
-        username="user",
-        password="pass",
+        account_sid="ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+        auth_token="your_auth_token_here",
+        from_number="+15551234567",
     )
     from vibedialer.voip import VoIPBackend
 
     assert isinstance(backend, VoIPBackend)
-    assert backend.sip_server == "sip.example.com"
-    assert backend.username == "user"
+    assert backend.account_sid == "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+    assert backend.auth_token == "your_auth_token_here"
+    assert backend.from_number == "+15551234567"
 
 
 def test_create_backend_ip_relay():
@@ -145,3 +146,61 @@ def test_create_backend_invalid_type():
 
     with pytest.raises(ValueError, match="Unknown backend type"):
         create_backend(FakeType())  # type: ignore
+
+
+class TestTwilioVoIPBackend:
+    """Tests for Twilio VoIP backend."""
+
+    def test_voip_backend_initialization(self):
+        """Test VoIP backend can be initialized."""
+        from vibedialer.voip import VoIPBackend
+
+        backend = VoIPBackend(
+            account_sid="ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            auth_token="test_token",
+            from_number="+15551234567",
+        )
+
+        assert backend.account_sid == "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        assert backend.auth_token == "test_token"
+        assert backend.from_number == "+15551234567"
+        assert backend.timeout == 30  # Default timeout
+        assert not backend.is_connected()
+
+    def test_voip_backend_normalize_phone_number_e164(self):
+        """Test normalization of phone numbers to E.164 format."""
+        from vibedialer.voip import VoIPBackend
+
+        backend = VoIPBackend(
+            account_sid="AC123",
+            auth_token="token",
+            from_number="+15551234567",
+        )
+
+        # Already in E.164 format
+        assert backend._normalize_phone_number("+15551234567") == "+15551234567"
+
+        # 10-digit US number
+        assert backend._normalize_phone_number("5551234567") == "+15551234567"
+        assert backend._normalize_phone_number("555-123-4567") == "+15551234567"
+
+        # 11-digit with country code
+        assert backend._normalize_phone_number("15551234567") == "+15551234567"
+        assert backend._normalize_phone_number("1-555-123-4567") == "+15551234567"
+
+    def test_voip_backend_not_connected_returns_error(self):
+        """Test that dialing without connection returns error."""
+        from vibedialer.voip import VoIPBackend
+
+        backend = VoIPBackend(
+            account_sid="AC123",
+            auth_token="token",
+            from_number="+15551234567",
+        )
+
+        # Try to dial without connecting
+        result = backend.dial("555-123-4567")
+
+        assert not result.success
+        assert result.status == "error"
+        assert "Not connected" in result.message
