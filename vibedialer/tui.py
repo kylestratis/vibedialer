@@ -1,5 +1,7 @@
 """Textual TUI interface for VibeDialer."""
 
+import asyncio
+
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import (
@@ -14,7 +16,7 @@ from textual.widgets import (
     Switch,
 )
 
-from vibedialer.art import get_telephone_keypad
+from vibedialer.art import get_telephone_keypad, get_telephone_keypad_with_highlight
 from vibedialer.backends import BackendType
 from vibedialer.dialer import PhoneDialer
 from vibedialer.storage import StorageType
@@ -173,7 +175,7 @@ class VibeDialerApp(App):
         with Container(id="main-container"):
             # Display telephone keypad at the top
             with Vertical(id="keypad-section"):
-                yield Static(get_telephone_keypad())
+                yield Static(get_telephone_keypad(), id="keypad-display")
 
             # Status display section
             with Vertical(id="status-section"):
@@ -233,7 +235,7 @@ class VibeDialerApp(App):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press events."""
         if event.button.id == "start-btn":
-            self.start_dialing()
+            self.run_worker(self.start_dialing())
         elif event.button.id == "stop-btn":
             self.stop_dialing()
         elif event.button.id == "clear-btn":
@@ -255,7 +257,30 @@ class VibeDialerApp(App):
                 **{**self.backend_kwargs, **self.storage_kwargs},
             )
 
-    def start_dialing(self) -> None:
+    async def animate_keypad_for_number(self, phone_number: str) -> None:
+        """
+        Animate the keypad by highlighting each digit as it's being dialed.
+
+        Args:
+            phone_number: The phone number being dialed
+        """
+        keypad_display = self.query_one("#keypad-display", Static)
+
+        # Extract just the digits from the phone number (strip dashes and spaces)
+        digits = "".join(c for c in phone_number if c in "0123456789*#")
+
+        # Animate each digit
+        for digit in digits:
+            # Highlight the current digit
+            keypad_display.update(get_telephone_keypad_with_highlight(digit))
+            # Small delay to make it visible (100ms per digit)
+            await asyncio.sleep(0.1)
+
+        # Reset to non-highlighted keypad after a brief pause
+        await asyncio.sleep(0.2)
+        keypad_display.update(get_telephone_keypad())
+
+    async def start_dialing(self) -> None:
         """Start the dialing sequence."""
         phone_input = self.query_one("#phone-input", Input)
         phone_number = phone_input.value.strip()
@@ -295,6 +320,9 @@ class VibeDialerApp(App):
                 "status-no_answer",
             )
 
+            # Animate the keypad for this number
+            await self.animate_keypad_for_number(number)
+
             result = self.dialer.dial(number)
 
             # Update status display with result
@@ -309,6 +337,9 @@ class VibeDialerApp(App):
                 display_message,
                 result.timestamp,
             )
+
+            # Brief pause between numbers to make it easier to follow
+            await asyncio.sleep(0.3)
 
         # Reset status display
         current_number_label.update("---")

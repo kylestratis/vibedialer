@@ -9,6 +9,7 @@ from vibedialer.art import (
     display_keypad,
     display_welcome_screen,
     get_telephone_keypad,
+    get_telephone_keypad_with_highlight,
     get_welcome_banner,
 )
 
@@ -89,3 +90,54 @@ def test_display_keypad_renders():
     assert len(output) > 0
     # Should contain some numbers
     assert any(str(i) in output for i in range(10))
+
+
+def test_get_telephone_keypad_with_highlight_returns_text():
+    """Test that highlighted keypad returns a Rich Text object."""
+    keypad = get_telephone_keypad_with_highlight("5")
+    assert isinstance(keypad, Text)
+    assert len(keypad) > 0
+
+
+def test_telephone_keypad_with_highlight_no_digit():
+    """Test that highlighted keypad works with no active digit."""
+    keypad = get_telephone_keypad_with_highlight(None)
+    keypad_str = keypad.plain
+
+    # Should still contain all numbers
+    for digit in "0123456789":
+        assert digit in keypad_str
+
+
+def test_telephone_keypad_with_highlight_contains_digit():
+    """Test that highlighted keypad contains the highlighted digit."""
+    for digit in "0123456789":
+        keypad = get_telephone_keypad_with_highlight(digit)
+        keypad_str = keypad.plain
+        assert digit in keypad_str
+
+
+def test_telephone_keypad_with_highlight_special_chars():
+    """Test that highlighted keypad works with * and #."""
+    for char in ["*", "#"]:
+        keypad = get_telephone_keypad_with_highlight(char)
+        keypad_str = keypad.plain
+        assert char in keypad_str
+
+
+def test_telephone_keypad_with_highlight_has_styling():
+    """Test that highlighted keypad has different styling for active digit."""
+    # Create keypads with and without highlight
+    normal_keypad = get_telephone_keypad_with_highlight(None)
+    highlighted_keypad = get_telephone_keypad_with_highlight("5")
+
+    # The plain text should be the same
+    assert normal_keypad.plain == highlighted_keypad.plain
+
+    # But the spans (styling) should be different
+    # Highlighted version should have reverse style for the active digit
+    highlighted_spans = list(highlighted_keypad.spans)
+
+    # Find a span with "reverse" in the style for the highlighted version
+    has_reverse = any("reverse" in str(span.style) for span in highlighted_spans)
+    assert has_reverse, "Highlighted keypad should have reverse styling"
