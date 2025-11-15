@@ -267,6 +267,136 @@ For large scans, ensure adequate disk space:
 - CSV: ~100 bytes per result
 - SQLite: ~50 bytes per result (more compact)
 
+## Resuming Interrupted Sessions
+
+VibeDialer can resume from interrupted dialing sessions, picking up where you left off.
+
+### Basic Resume
+
+```bash
+# Resume from a CSV file with explicit prefix
+vibedialer dial 555-12 --resume vibedialer_results.csv --resume-prefix 555-12
+
+# Resume from SQLite database
+vibedialer dial 555-12 --resume vibedialer_results.db --resume-prefix 555-12
+```
+
+### Automatic Pattern Inference
+
+VibeDialer can automatically infer the pattern from your results file:
+
+```bash
+# Infer pattern automatically (silent mode)
+vibedialer dial 555-12 --resume vibedialer_results.csv
+
+# Infer with confirmation prompt
+vibedialer dial 555-12 --resume vibedialer_results.csv --infer-prefix
+```
+
+When using `--infer-prefix`, you'll see:
+
+```
+Inferred pattern from vibedialer_results.csv: 555-12
+  Total numbers in pattern: 100
+  Already dialed: 37
+  Remaining to dial: 63
+
+Continue with this pattern? [y/N]:
+```
+
+### How It Works
+
+1. **Reads Completed Numbers**: Scans the results file for already-dialed numbers
+2. **Infers Pattern**: Finds the common prefix (e.g., "555-12" from "555-1200", "555-1201", etc.)
+3. **Calculates Remaining**: Generates full list and filters out completed numbers
+4. **Continues Dialing**: Dials only the remaining numbers
+
+### Resume Examples
+
+**Scenario 1: Power Outage**
+```bash
+# Start scan
+vibedialer dial 555-12 --backend modem --storage csv
+
+# Power goes out after 37 numbers...
+
+# Resume later
+vibedialer dial dummy --resume vibedialer_results.csv --backend modem
+```
+
+**Scenario 2: Network Error**
+```bash
+# Scan interrupted at number 523
+vibedialer dial 212-555 --backend modem --storage sqlite --output scan.db
+
+# Resume with explicit prefix
+vibedialer dial dummy --resume scan.db --resume-prefix 212-555 --backend modem
+```
+
+**Scenario 3: Partial Completion**
+```bash
+# You dialed 555-1200 through 555-1250, want to finish 555-12xx
+
+# Check what's left with --infer-prefix
+vibedialer dial dummy --resume results.csv --infer-prefix
+
+# If pattern looks good, resume
+vibedialer dial dummy --resume results.csv --backend modem
+```
+
+### Resume with Different Storage
+
+You can resume from one file and save to another:
+
+```bash
+# Resume from CSV, save to SQLite
+vibedialer dial dummy \
+  --resume old_scan.csv \
+  --storage sqlite \
+  --output new_scan.db
+
+# Resume from SQLite, save to new CSV
+vibedialer dial dummy \
+  --resume scan.db \
+  --storage csv \
+  --output continued_scan.csv
+```
+
+### Resume Options
+
+| Flag | Description |
+|------|-------------|
+| `--resume <file>` | Resume from results file (CSV or SQLite) |
+| `--resume-prefix <prefix>` | Explicit pattern to resume (e.g., "555-12") |
+| `--infer-prefix` | Show inferred pattern and ask for confirmation |
+
+### Pattern Inference Rules
+
+VibeDialer infers patterns by finding the common prefix of dialed numbers:
+
+- `555-1200` through `555-1299` → `555-12` (100 numbers)
+- `555-0000` through `555-9999` → `555` (10,000 numbers)
+- `212-5550` through `212-5559` → `212-555` (10 numbers)
+
+For best results:
+- Keep prefix explicit when resuming large ranges
+- Use `--infer-prefix` to verify pattern before long scans
+- Resume files should contain contiguous ranges for accurate inference
+
+### Troubleshooting Resume
+
+**"Could not infer pattern"**
+- Solution: Use `--resume-prefix` to specify pattern explicitly
+- Cause: Numbers in file don't share a common prefix
+
+**"No dialed numbers found"**
+- Solution: Check file path and format
+- Cause: Empty results file or wrong file type
+
+**Wrong pattern inferred**
+- Solution: Use `--infer-prefix` to check, then provide explicit `--resume-prefix`
+- Cause: Mixed patterns in same file
+
 ## Advanced Usage
 
 ### Querying SQLite Results
