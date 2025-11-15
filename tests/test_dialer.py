@@ -2,6 +2,7 @@
 
 from vibedialer.backends import BackendType, DialResult
 from vibedialer.dialer import PhoneDialer
+from vibedialer.storage import StorageType
 
 
 def test_phone_dialer_initialization():
@@ -161,3 +162,26 @@ def test_phone_dialer_auto_connect():
     result = dialer.dial("555-1234")
     assert dialer._backend_connected is True
     assert result.phone_number == "555-1234"
+
+
+def test_phone_dialer_with_storage_type():
+    """Test creating PhoneDialer with specific storage type."""
+    dialer = PhoneDialer(
+        backend_type=BackendType.SIMULATION,
+        storage_type=StorageType.DRY_RUN,
+    )
+    assert dialer is not None
+    assert dialer.storage is not None
+
+
+def test_phone_dialer_cleanup():
+    """Test that cleanup properly closes storage and backend."""
+    dialer = PhoneDialer(
+        backend_type=BackendType.SIMULATION,
+        storage_type=StorageType.DRY_RUN,
+    )
+    dialer.connect()
+    assert dialer._backend_connected is True
+
+    dialer.cleanup()
+    assert dialer._backend_connected is False

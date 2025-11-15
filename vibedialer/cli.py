@@ -8,6 +8,7 @@ from rich.console import Console
 from vibedialer import __version__
 from vibedialer.art import display_keypad, display_welcome_screen
 from vibedialer.backends import BackendType
+from vibedialer.storage import StorageType
 from vibedialer.tui import VibeDialerApp
 
 console = Console()
@@ -98,6 +99,22 @@ def dial(
             help="Baud rate for modem connection",
         ),
     ] = 57600,
+    storage: Annotated[
+        str,
+        typer.Option(
+            "--storage",
+            "-s",
+            help="Storage backend for results (csv, sqlite, dry-run)",
+        ),
+    ] = "csv",
+    output_file: Annotated[
+        str,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Output file for CSV or database for SQLite",
+        ),
+    ] = "",
 ) -> None:
     """
     Dial a phone number or range of numbers.
@@ -116,6 +133,16 @@ def dial(
         )
         raise typer.Exit(1) from e
 
+    # Parse storage type
+    try:
+        storage_type = StorageType(storage.lower())
+    except ValueError as e:
+        typer.echo(
+            f"Error: Invalid storage '{storage}'. Choose from: csv, sqlite, dry-run",
+            err=True,
+        )
+        raise typer.Exit(1) from e
+
     # Prepare backend kwargs
     backend_kwargs = {}
     if backend_type == BackendType.MODEM:
@@ -123,6 +150,14 @@ def dial(
             "port": modem_port,
             "baudrate": modem_baudrate,
         }
+
+    # Prepare storage kwargs
+    storage_kwargs = {}
+    if output_file:
+        if storage_type == StorageType.CSV:
+            storage_kwargs["filename"] = output_file
+        elif storage_type == StorageType.SQLITE:
+            storage_kwargs["database"] = output_file
 
     if interactive:
         # Optionally show welcome screen
@@ -136,10 +171,18 @@ def dial(
         tui_app = VibeDialerApp(
             backend_type=backend_type,
             backend_kwargs=backend_kwargs,
+            storage_type=storage_type,
+            storage_kwargs=storage_kwargs,
         )
         tui_app.phone_number = phone_number
         tui_app.randomize = random
-        tui_app.run()
+
+        try:
+            tui_app.run()
+        finally:
+            # Ensure cleanup happens even on error or user interrupt
+            if hasattr(tui_app, "dialer") and tui_app.dialer:
+                tui_app.dialer.cleanup()
     else:
         # Simple non-interactive mode (placeholder for now)
         mode = "random" if random else "sequential"
