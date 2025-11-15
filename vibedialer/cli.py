@@ -3,9 +3,13 @@
 from typing import Annotated
 
 import typer
+from rich.console import Console
 
 from vibedialer import __version__
+from vibedialer.art import display_keypad, display_welcome_screen
 from vibedialer.tui import VibeDialerApp
+
+console = Console()
 
 app = typer.Typer(
     name="vibedialer",
@@ -63,6 +67,14 @@ def dial(
             ),
         ),
     ] = False,
+    show_welcome: Annotated[
+        bool,
+        typer.Option(
+            "--show-welcome/--no-welcome",
+            "-w/-W",
+            help="Show welcome screen before launching TUI",
+        ),
+    ] = False,
 ) -> None:
     """
     Dial a phone number or range of numbers.
@@ -71,6 +83,13 @@ def dial(
     all possible numbers in either sequential or random order.
     """
     if interactive:
+        # Optionally show welcome screen
+        if show_welcome:
+            display_welcome_screen(console)
+            import time
+
+            time.sleep(2)  # Brief pause to show the welcome screen
+
         # Launch the TUI
         tui_app = VibeDialerApp()
         tui_app.phone_number = phone_number
@@ -81,6 +100,18 @@ def dial(
         mode = "random" if random else "sequential"
         typer.echo(f"Dialing {phone_number} in {mode} order...")
         typer.echo("Non-interactive mode not yet implemented.")
+
+
+@app.command()
+def welcome() -> None:
+    """Display the welcome screen with vaporwave banner."""
+    display_welcome_screen(console)
+
+
+@app.command()
+def keypad() -> None:
+    """Display the telephone keypad ASCII art."""
+    display_keypad(console)
 
 
 if __name__ == "__main__":
