@@ -2,12 +2,12 @@
 # VibeDialer - A war dialer TUI application
 #
 # Usage:
-#   ./vibe                          # Start interactive TUI with welcome screen
-#   ./vibe dial 555-12              # Dial phone numbers (interactive by default)
-#   ./vibe dial 555-12 --no-interactive  # CLI mode
-#   ./vibe welcome                  # Show welcome screen
-#   ./vibe keypad                   # Show keypad ASCII art
-#   ./vibe --help                   # Show help
+#   bin/vibedialer                          # Start interactive TUI with welcome screen
+#   bin/vibedialer dial 555-12              # Dial phone numbers (interactive by default)
+#   bin/vibedialer dial 555-12 --no-interactive  # CLI mode
+#   bin/vibedialer welcome                  # Show welcome screen
+#   bin/vibedialer keypad                   # Show keypad ASCII art
+#   bin/vibedialer --help                   # Show help
 #
 # This script uses uv to manage dependencies and run the application.
 # Make sure uv is installed: https://docs.astral.sh/uv/

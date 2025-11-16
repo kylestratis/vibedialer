@@ -33,23 +33,23 @@ pip install git+https://github.com/kylestratis/vibedialer.git
 
 ## Quick Start (No Installation Required)
 
-The easiest way to run VibeDialer without installation is using the included `vibe` script:
+The easiest way to run VibeDialer without installation is using the included `bin/vibedialer` script:
 
 ```bash
 # Start interactive TUI with welcome screen (default)
-./vibe
+bin/vibedialer
 
 # Dial with specific prefix
-./vibe dial 555-12
+bin/vibedialer dial 555-12
 
 # Show welcome screen
-./vibe welcome
+bin/vibedialer welcome
 
 # Show keypad ASCII art
-./vibe keypad
+bin/vibedialer keypad
 
 # Get help
-./vibe --help
+bin/vibedialer --help
 ```
 
 This script uses `uv` to automatically manage dependencies and run the application. Make sure you have `uv` installed first:
