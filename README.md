@@ -1,5 +1,7 @@
 # VibeDialer
 
+![Welcome Screen](docs/welcome.png "Welcome Screen")
+
 A war dialer TUI application for sequential phone number dialing with modem, VoIP, and simulation backends. Written for the Practical Data Discord Vibecoding Hackathon almost entirely on a phone from a children's birthday party and, later, a brewery mostly using voice with Wispr Flow.
 
 ## Installation
