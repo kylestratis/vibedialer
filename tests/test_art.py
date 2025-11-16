@@ -152,7 +152,10 @@ def test_get_ansi_art_collection_returns_list():
 
 
 def test_ansi_art_collection_not_empty():
-    """Test that ANSI art collection is not empty."""
+    """Test that ANSI art collection is not empty.
+
+    Note: This test requires at least one .txt file in the assets/ansi_art directory.
+    """
     collection = get_ansi_art_collection()
     assert len(collection) > 0, "ANSI art collection should have at least one piece"
 
