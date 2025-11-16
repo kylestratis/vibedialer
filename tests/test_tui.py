@@ -32,21 +32,32 @@ async def test_tui_app_mounts():
 @pytest.mark.asyncio
 async def test_tui_has_random_mode_toggle():
     """Test that the TUI has a toggle for random/sequential mode."""
+    from vibedialer.tui import MainMenuScreen, DialingScreen
+
     app = VibeDialerApp()
     async with app.run_test():
-        # Should have a switch or checkbox for random mode
-        # Look for the widget by ID
-        switch = app.query_one("#random-mode-switch")
+        # Navigate to menu screen
+        await app.push_screen("menu")
+        await app.push_screen("dialing")
+
+        # The dialing screen should have a switch for random mode
+        switch = app.screen.query_one("#random-mode-switch")
         assert switch is not None
 
 
 @pytest.mark.asyncio
 async def test_tui_displays_keypad():
     """Test that the TUI displays the telephone keypad."""
+    from vibedialer.tui import DialingScreen
+
     app = VibeDialerApp()
     async with app.run_test():
-        # Should have a keypad section
-        keypad_section = app.query_one("#keypad-section")
+        # Navigate through screens to dialing
+        await app.push_screen("menu")
+        await app.push_screen("dialing")
+
+        # Should have a keypad section on the dialing screen
+        keypad_section = app.screen.query_one("#keypad-section")
         assert keypad_section is not None
 
 
@@ -55,8 +66,12 @@ async def test_tui_has_status_display():
     """Test that the TUI has a status display section."""
     app = VibeDialerApp()
     async with app.run_test():
+        # Navigate to dialing screen
+        await app.push_screen("menu")
+        await app.push_screen("dialing")
+
         # Should have a status display section
-        status_section = app.query_one("#status-section")
+        status_section = app.screen.query_one("#status-section")
         assert status_section is not None
 
 
@@ -65,11 +80,15 @@ async def test_tui_status_display_has_labels():
     """Test that status display has current number and status labels."""
     app = VibeDialerApp()
     async with app.run_test():
+        # Navigate to dialing screen
+        await app.push_screen("menu")
+        await app.push_screen("dialing")
+
         # Should have labels for current number and status
-        current_number_label = app.query_one("#current-number")
+        current_number_label = app.screen.query_one("#current-number")
         assert current_number_label is not None
 
-        status_label = app.query_one("#current-status")
+        status_label = app.screen.query_one("#current-status")
         assert status_label is not None
 
 
@@ -87,8 +106,12 @@ async def test_tui_has_pause_button():
     """Test that the TUI has a pause button."""
     app = VibeDialerApp()
     async with app.run_test():
+        # Navigate to dialing screen
+        await app.push_screen("menu")
+        await app.push_screen("dialing")
+
         # Should have a pause button
-        pause_btn = app.query_one("#pause-btn")
+        pause_btn = app.screen.query_one("#pause-btn")
         assert pause_btn is not None
         assert "Pause" in str(pause_btn.label)
 
@@ -98,8 +121,12 @@ async def test_tui_has_hang_up_button():
     """Test that the TUI has a hang up button (not stop)."""
     app = VibeDialerApp()
     async with app.run_test():
+        # Navigate to dialing screen
+        await app.push_screen("menu")
+        await app.push_screen("dialing")
+
         # Should have a hang up button
-        stop_btn = app.query_one("#stop-btn")
+        stop_btn = app.screen.query_one("#stop-btn")
         assert stop_btn is not None
         assert "Hang Up" in str(stop_btn.label)
 
@@ -107,22 +134,32 @@ async def test_tui_has_hang_up_button():
 @pytest.mark.asyncio
 async def test_tui_pause_functionality():
     """Test that pause/resume functionality works."""
+    from vibedialer.tui import DialingScreen
+
     app = VibeDialerApp()
     async with app.run_test():
+        # Navigate to dialing screen
+        await app.push_screen("menu")
+        await app.push_screen("dialing")
+
+        # Get the dialing screen
+        dialing_screen = app.screen
+        assert isinstance(dialing_screen, DialingScreen)
+
         # Initially not paused
-        assert not app.is_paused
-        assert not app.is_dialing
+        assert not dialing_screen.is_paused
+        assert not dialing_screen.is_dialing
 
         # Simulate dialing state
-        app.is_dialing = True
+        dialing_screen.is_dialing = True
 
         # Pause
-        app.pause_dialing()
-        assert app.is_paused
+        dialing_screen.pause_dialing()
+        assert dialing_screen.is_paused
 
         # Resume
-        app.resume_dialing()
-        assert not app.is_paused
+        dialing_screen.resume_dialing()
+        assert not dialing_screen.is_paused
 
 
 @pytest.mark.asyncio
@@ -157,8 +194,12 @@ async def test_tui_progress_format():
     app = VibeDialerApp(tui_limit=3)
 
     async with app.run_test(size=(120, 40)):
+        # Navigate to dialing screen
+        await app.push_screen("menu")
+        await app.push_screen("dialing")
+
         # Test the progress format logic
-        current_number_label = app.query_one("#current-number")
+        current_number_label = app.screen.query_one("#current-number")
 
         # Get the label's current value
         # In Textual, we can check the label's render or use str()
