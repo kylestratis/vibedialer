@@ -382,7 +382,6 @@ def test_create_storage_default_filenames():
 
 def test_csv_storage_creates_directory():
     """Test that CSV storage creates parent directory automatically."""
-    import shutil
     import tempfile
 
     # Use a temporary directory as base
@@ -404,7 +403,6 @@ def test_csv_storage_creates_directory():
 
 def test_sqlite_storage_creates_directory():
     """Test that SQLite storage creates parent directory automatically."""
-    import shutil
     import tempfile
 
     # Use a temporary directory as base

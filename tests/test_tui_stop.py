@@ -19,7 +19,9 @@ class TestTUIStopDialing:
         async with app.run_test():
             # Create and push dialing screen directly (disable auto_start for tests)
             dialing_screen = DialingScreen(
-                phone_number="555", backend_type=BackendType.SIMULATION, auto_start=False
+                phone_number="555",
+                backend_type=BackendType.SIMULATION,
+                auto_start=False,
             )
             await app.push_screen(dialing_screen)
 
@@ -36,7 +38,9 @@ class TestTUIStopDialing:
         async with app.run_test():
             # Create and push dialing screen directly (disable auto_start for tests)
             dialing_screen = DialingScreen(
-                phone_number="555", backend_type=BackendType.SIMULATION, auto_start=False
+                phone_number="555",
+                backend_type=BackendType.SIMULATION,
+                auto_start=False,
             )
             await app.push_screen(dialing_screen)
 
@@ -58,7 +62,9 @@ class TestTUIStopDialing:
         async with app.run_test():
             # Create and push dialing screen directly (disable auto_start for tests)
             dialing_screen = DialingScreen(
-                phone_number="555", backend_type=BackendType.SIMULATION, auto_start=False
+                phone_number="555",
+                backend_type=BackendType.SIMULATION,
+                auto_start=False,
             )
             await app.push_screen(dialing_screen)
 
@@ -80,7 +86,9 @@ class TestTUIStopDialing:
         async with app.run_test():
             # Create and push dialing screen directly (disable auto_start for tests)
             dialing_screen = DialingScreen(
-                phone_number="555", backend_type=BackendType.SIMULATION, auto_start=False
+                phone_number="555",
+                backend_type=BackendType.SIMULATION,
+                auto_start=False,
             )
             await app.push_screen(dialing_screen)
 
@@ -180,7 +188,9 @@ class TestTUIStopDialing:
         async with app.run_test():
             # Create and push dialing screen directly (disable auto_start for tests)
             dialing_screen = DialingScreen(
-                phone_number="555", backend_type=BackendType.SIMULATION, auto_start=False
+                phone_number="555",
+                backend_type=BackendType.SIMULATION,
+                auto_start=False,
             )
             await app.push_screen(dialing_screen)
 
