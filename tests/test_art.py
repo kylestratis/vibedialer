@@ -5,7 +5,7 @@ from io import StringIO
 from rich.console import Console
 from rich.text import Text
 
-from vibedialer.art import (
+from vibedialer.ui import (
     display_keypad,
     display_welcome_screen,
     get_ansi_art_collection,

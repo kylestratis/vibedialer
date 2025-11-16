@@ -2,7 +2,7 @@
 
 from unittest.mock import Mock, patch
 
-from vibedialer.voip import VoIPBackend
+from vibedialer.backends import VoIPBackend
 
 
 class TestAMDDetection:

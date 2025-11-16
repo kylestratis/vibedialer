@@ -2,7 +2,7 @@
 
 import logging
 
-from vibedialer.backends import DialResult, TelephonyBackend
+from vibedialer.backends.base import DialResult, TelephonyBackend
 
 logger = logging.getLogger(__name__)
 

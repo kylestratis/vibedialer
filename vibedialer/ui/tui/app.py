@@ -17,15 +17,15 @@ from textual.widgets import (
     Switch,
 )
 
-from vibedialer.art import (
+from vibedialer.backends import BackendType
+from vibedialer.dialer import PhoneDialer
+from vibedialer.storage import StorageType
+from vibedialer.ui.art import (
     get_random_ansi_art,
     get_telephone_keypad,
     get_telephone_keypad_with_highlight,
     get_welcome_banner,
 )
-from vibedialer.backends import BackendType
-from vibedialer.dialer import PhoneDialer
-from vibedialer.storage import StorageType
 from vibedialer.validation import CountryCode
 
 

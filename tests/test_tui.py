@@ -3,7 +3,7 @@
 import pytest
 from textual.app import App
 
-from vibedialer.tui import VibeDialerApp
+from vibedialer.ui.tui import VibeDialerApp
 
 
 def test_tui_app_creation():
@@ -132,7 +132,7 @@ async def test_tui_has_hang_up_button():
 @pytest.mark.asyncio
 async def test_tui_pause_functionality():
     """Test that pause/resume functionality works."""
-    from vibedialer.tui import DialingScreen
+    from vibedialer.ui.tui import DialingScreen
 
     app = VibeDialerApp()
     async with app.run_test():
