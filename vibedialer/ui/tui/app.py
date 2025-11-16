@@ -3,7 +3,14 @@
 import asyncio
 
 from textual.app import App, ComposeResult
-from textual.containers import Center, Container, Grid, Horizontal, Vertical
+from textual.containers import (
+    Center,
+    Container,
+    Grid,
+    Horizontal,
+    Vertical,
+    VerticalScroll,
+)
 from textual.screen import Screen
 from textual.widgets import (
     Button,
@@ -134,6 +141,12 @@ class MainMenuScreen(Screen):
     #menu-container {
         width: 100%;
         height: 100%;
+        overflow-y: auto;
+    }
+
+    #menu-content {
+        width: 100%;
+        height: auto;
         padding: 2;
     }
 
@@ -182,6 +195,7 @@ class MainMenuScreen(Screen):
 
     #keypad-display-menu {
         margin-top: 2;
+        margin-bottom: 2;
         align: center middle;
     }
 
@@ -273,118 +287,119 @@ class MainMenuScreen(Screen):
     def compose(self) -> ComposeResult:
         """Create child widgets for the main menu."""
         yield Header()
-        with Container(id="menu-container"):
-            # Instructions section
-            with Vertical(id="instructions"):
-                yield Label("Welcome to VibeDialer!", id="title")
-                yield Label("")
-                yield Label("📋 Pattern Requirements:")
-                yield Label(
-                    "  • Enter a partial phone number (minimum 3 digits for area code)"
-                )
-                yield Label("  • Area code must start with 2-9 (not 0 or 1)")
-                yield Label("  • Exchange (if included) must start with 2-9")
-                yield Label(
-                    "  • Example: '555' will dial all numbers in the 555 area code"
-                )
-                yield Label("  • Example: '555-12' will dial 555-1200 through 555-1299")
-                yield Label(
-                    "  • Example: '555-1234' will dial just that specific number"
-                )
-                yield Label("")
-                yield Label("💡 Input Methods:")
-                yield Label("  • Type directly in the text field below, OR")
-                yield Label("  • Click the dialpad buttons to build your pattern")
-                yield Label("  • Press Enter to start dialing")
-
-            # Input section
-            with Vertical(id="input-area"):
-                yield Label("Current Pattern:", id="pattern-label")
-                yield Label("(empty)", id="pattern-display")
-                yield Label("", id="validation-feedback", classes="validation-info")
-                yield Label("")
-                yield Label("Text Input:")
-                yield Input(
-                    placeholder="e.g., 555-12 or 555-1234",
-                    id="pattern-input",
-                )
-
-                # Interactive dialpad
-                with Center(id="dialpad-section"):
-                    yield InteractiveDialpad()
-
-                # Configuration section
-                yield Label("")
-                yield Label("⚙️ Configuration:", id="config-header")
-                with Horizontal(id="backend-section"):
-                    yield Label("Backend:")
-                    yield Select(
-                        options=[
-                            ("Simulation", BackendType.SIMULATION),
-                            ("Modem", BackendType.MODEM),
-                            ("VoIP", BackendType.VOIP),
-                            ("IP Relay", BackendType.IP_RELAY),
-                        ],
-                        value=self.backend_type,
-                        id="backend-select",
-                        allow_blank=False,
+        with VerticalScroll(id="menu-container"):
+            with Vertical(id="menu-content"):
+                # Instructions section
+                with Vertical(id="instructions"):
+                    yield Label("Welcome to VibeDialer!", id="title")
+                    yield Label("")
+                    yield Label("📋 Pattern Requirements:")
+                    yield Label(
+                        "  • Enter a partial phone number (minimum 3 digits for area code)"
                     )
-                with Horizontal(id="storage-section"):
-                    yield Label("Storage:")
-                    yield Select(
-                        options=[
-                            ("CSV", StorageType.CSV),
-                            ("SQLite", StorageType.SQLITE),
-                            ("Dry Run", StorageType.DRY_RUN),
-                        ],
-                        value=self.storage_type,
-                        id="storage-select",
-                        allow_blank=False,
+                    yield Label("  • Area code must start with 2-9 (not 0 or 1)")
+                    yield Label("  • Exchange (if included) must start with 2-9")
+                    yield Label(
+                        "  • Example: '555' will dial all numbers in the 555 area code"
                     )
-                with Horizontal(id="output-file-section"):
-                    yield Label("Output File:")
+                    yield Label("  • Example: '555-12' will dial 555-1200 through 555-1299")
+                    yield Label(
+                        "  • Example: '555-1234' will dial just that specific number"
+                    )
+                    yield Label("")
+                    yield Label("💡 Input Methods:")
+                    yield Label("  • Type directly in the text field below, OR")
+                    yield Label("  • Click the dialpad buttons to build your pattern")
+                    yield Label("  • Press Enter to start dialing")
+
+                # Input section
+                with Vertical(id="input-area"):
+                    yield Label("Current Pattern:", id="pattern-label")
+                    yield Label("(empty)", id="pattern-display")
+                    yield Label("", id="validation-feedback", classes="validation-info")
+                    yield Label("")
+                    yield Label("Text Input:")
                     yield Input(
-                        placeholder="Leave empty for auto-generated filename",
-                        id="output-file-input",
-                        value=self.storage_kwargs.get(
-                            "filename", self.storage_kwargs.get("database", "")
-                        ),
-                    )
-                with Horizontal(id="country-code-section"):
-                    yield Label("Country Code:")
-                    yield Input(
-                        placeholder="1",
-                        id="country-code-input",
-                        value=str(
-                            self.country_code.value
-                            if isinstance(self.country_code, CountryCode)
-                            else self.country_code
-                        ),
-                    )
-                with Horizontal(id="tui-limit-section"):
-                    yield Label("TUI Limit (0=unlimited):")
-                    yield Input(
-                        placeholder="0",
-                        id="tui-limit-input",
-                        value=str(self.tui_limit) if self.tui_limit else "0",
-                    )
-                with Horizontal(id="mode-section"):
-                    yield Label("Random Mode:")
-                    yield Switch(id="random-mode-switch", value=self.randomize)
-
-                # Control buttons
-                with Horizontal(classes="button-row"):
-                    yield Button("Clear", id="clear-btn", variant="warning")
-                    yield Button("Backspace", id="backspace-btn")
-                    yield Button(
-                        "Continue to Dialing",
-                        id="start-dial-btn",
-                        variant="success",
+                        placeholder="e.g., 555-12 or 555-1234",
+                        id="pattern-input",
                     )
 
-            # Display telephone keypad
-            with Center(id="keypad-display-menu"):
-                yield Static(get_telephone_keypad(), id="keypad-art")
+                    # Interactive dialpad
+                    with Center(id="dialpad-section"):
+                        yield InteractiveDialpad()
+
+                    # Configuration section
+                    yield Label("")
+                    yield Label("⚙️ Configuration:", id="config-header")
+                    with Horizontal(id="backend-section"):
+                        yield Label("Backend:")
+                        yield Select(
+                            options=[
+                                ("Simulation", BackendType.SIMULATION),
+                                ("Modem", BackendType.MODEM),
+                                ("VoIP", BackendType.VOIP),
+                                ("IP Relay", BackendType.IP_RELAY),
+                            ],
+                            value=self.backend_type,
+                            id="backend-select",
+                            allow_blank=False,
+                        )
+                    with Horizontal(id="storage-section"):
+                        yield Label("Storage:")
+                        yield Select(
+                            options=[
+                                ("CSV", StorageType.CSV),
+                                ("SQLite", StorageType.SQLITE),
+                                ("Dry Run", StorageType.DRY_RUN),
+                            ],
+                            value=self.storage_type,
+                            id="storage-select",
+                            allow_blank=False,
+                        )
+                    with Horizontal(id="output-file-section"):
+                        yield Label("Output File:")
+                        yield Input(
+                            placeholder="Leave empty for auto-generated filename",
+                            id="output-file-input",
+                            value=self.storage_kwargs.get(
+                                "filename", self.storage_kwargs.get("database", "")
+                            ),
+                        )
+                    with Horizontal(id="country-code-section"):
+                        yield Label("Country Code:")
+                        yield Input(
+                            placeholder="1",
+                            id="country-code-input",
+                            value=str(
+                                self.country_code.value
+                                if isinstance(self.country_code, CountryCode)
+                                else self.country_code
+                            ),
+                        )
+                    with Horizontal(id="tui-limit-section"):
+                        yield Label("TUI Limit (0=unlimited):")
+                        yield Input(
+                            placeholder="0",
+                            id="tui-limit-input",
+                            value=str(self.tui_limit) if self.tui_limit else "0",
+                        )
+                    with Horizontal(id="mode-section"):
+                        yield Label("Random Mode:")
+                        yield Switch(id="random-mode-switch", value=self.randomize)
+
+                    # Control buttons
+                    with Horizontal(classes="button-row"):
+                        yield Button("Clear", id="clear-btn", variant="warning")
+                        yield Button("Backspace", id="backspace-btn")
+                        yield Button(
+                            "Continue to Dialing",
+                            id="start-dial-btn",
+                            variant="success",
+                        )
+
+                    # Display telephone keypad
+                    with Center(id="keypad-display-menu"):
+                        yield Static(get_telephone_keypad(), id="keypad-art")
 
         yield Footer()
 
