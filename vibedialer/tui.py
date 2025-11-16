@@ -177,6 +177,7 @@ class VibeDialerApp(App):
             **{**self.backend_kwargs, **self.storage_kwargs},
         )
         self.title = "VibeDialer"
+        self.is_dialing = False  # Track if currently dialing
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -298,6 +299,9 @@ class VibeDialerApp(App):
         if not phone_number and not self.resume_numbers:
             return
 
+        # Set dialing flag
+        self.is_dialing = True
+
         # Get random mode setting from switch
         random_switch = self.query_one("#random-mode-switch", Switch)
         randomize = random_switch.value
@@ -318,6 +322,10 @@ class VibeDialerApp(App):
         current_status_label = self.query_one("#current-status", Label)
 
         for number in numbers[:10]:  # Limit to first 10 for demo
+            # Check if stop was requested
+            if not self.is_dialing:
+                break
+
             # Update status display with current number being dialed
             current_number_label.update(number)
             current_status_label.update("Dialing...")
@@ -353,7 +361,8 @@ class VibeDialerApp(App):
 
         # Reset status display
         current_number_label.update("---")
-        current_status_label.update("Complete")
+        final_status = "Stopped" if not self.is_dialing else "Complete"
+        current_status_label.update(final_status)
         current_status_label.remove_class(
             "status-ringing",
             "status-busy",
@@ -362,6 +371,9 @@ class VibeDialerApp(App):
             "status-error",
             "status-no_answer",
         )
+
+        # Clear dialing flag
+        self.is_dialing = False
 
     def _format_status_display(self, status: str) -> str:
         """
@@ -384,9 +396,55 @@ class VibeDialerApp(App):
         return status_map.get(status, status.title())
 
     def stop_dialing(self) -> None:
-        """Stop the current dialing sequence."""
-        # Placeholder for stopping logic
-        pass
+        """
+        Stop the current dialing sequence.
+
+        Immediately hangs up any active call, waits for pending analyses,
+        flushes storage to save results, and updates UI status.
+        """
+        # Set flag to stop the dialing loop
+        self.is_dialing = False
+
+        # Hang up any current call
+        if self.dialer.backend:
+            try:
+                self.dialer.backend.hangup()
+            except Exception:
+                # Log but don't fail - backend might not support hangup
+                # or no call is currently active
+                pass
+
+        # Wait for pending audio analyses (VoIP only)
+        if hasattr(self.dialer.backend, "_wait_for_pending_analyses"):
+            try:
+                self.dialer.backend._wait_for_pending_analyses(timeout=2.0)
+            except Exception:
+                # Log but continue - analysis might fail or timeout
+                pass
+
+        # Flush storage to ensure all results are saved
+        if self.dialer.storage:
+            try:
+                self.dialer.storage.flush()
+            except Exception:
+                # Log but don't fail
+                pass
+
+        # Update UI status
+        try:
+            current_status_label = self.query_one("#current-status", Label)
+            current_status_label.update("Stopped")
+            current_status_label.remove_class(
+                "status-ringing",
+                "status-busy",
+                "status-modem",
+                "status-person",
+                "status-error",
+                "status-no_answer",
+            )
+        except Exception:
+            # UI might not be ready yet
+            pass
 
     def clear_results(self) -> None:
         """Clear the results table."""
