@@ -31,21 +31,27 @@ def test_cli_dial_command_exists():
 def test_cli_dial_with_phone_number():
     """Test that we can invoke dial with a phone number."""
     # Use --no-interactive to avoid launching the TUI
-    result = runner.invoke(app, ["dial", "555-1234", "--no-interactive"])
-    # Should not crash, but might not do much yet
+    # Use valid pattern: exchange must start with 2-9
+    result = runner.invoke(
+        app, ["dial", "555-234", "--no-interactive", "--storage", "dry-run"]
+    )
     assert result.exit_code == 0
 
 
 def test_cli_dial_with_random_flag():
     """Test that the --random flag is accepted."""
-    result = runner.invoke(app, ["dial", "555-1234", "--no-interactive", "--random"])
+    result = runner.invoke(
+        app,
+        ["dial", "555-234", "--no-interactive", "--random", "--storage", "dry-run"],
+    )
     assert result.exit_code == 0
 
 
 def test_cli_dial_with_sequential_flag():
     """Test that the --sequential flag is accepted."""
     result = runner.invoke(
-        app, ["dial", "555-1234", "--no-interactive", "--sequential"]
+        app,
+        ["dial", "555-234", "--no-interactive", "--sequential", "--storage", "dry-run"],
     )
     assert result.exit_code == 0
 
