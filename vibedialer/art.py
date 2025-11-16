@@ -1,5 +1,7 @@
 """ASCII/ANSI art assets for VibeDialer."""
 
+import random
+
 from rich.console import Console
 from rich.text import Text
 
@@ -9,6 +11,49 @@ VAPORWAVE_CYAN = "#01CDFE"
 VAPORWAVE_PURPLE = "#B967FF"
 VAPORWAVE_YELLOW = "#FFFB96"
 VAPORWAVE_BLUE = "#05FFA1"
+
+
+# ANSI Art Collection
+# This is a list of ANSI art pieces that will be randomly selected for display
+# You can add more art pieces here in plaintext format
+_ANSI_ART_COLLECTION = [
+    # Placeholder art - replace with actual ANSI art
+    """
+    ╔═══════════════════════════════════════╗
+    ║                                       ║
+    ║    Welcome to the world of            ║
+    ║    War Dialing!                       ║
+    ║                                       ║
+    ╚═══════════════════════════════════════╝
+    """,
+]
+
+
+def get_ansi_art_collection() -> list[Text]:
+    """
+    Get the collection of ANSI art pieces.
+
+    Returns:
+        List of Rich Text objects containing ANSI art
+    """
+    # Convert plaintext art to Rich Text objects with vaporwave styling
+    collection = []
+    for art_text in _ANSI_ART_COLLECTION:
+        art = Text()
+        art.append(art_text.strip(), style=VAPORWAVE_CYAN)
+        collection.append(art)
+    return collection
+
+
+def get_random_ansi_art() -> Text:
+    """
+    Get a random ANSI art piece from the collection.
+
+    Returns:
+        Rich Text object with a randomly selected ANSI art piece
+    """
+    collection = get_ansi_art_collection()
+    return random.choice(collection)
 
 
 def get_welcome_banner() -> Text:

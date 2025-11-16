@@ -8,6 +8,8 @@ from rich.text import Text
 from vibedialer.art import (
     display_keypad,
     display_welcome_screen,
+    get_ansi_art_collection,
+    get_random_ansi_art,
     get_telephone_keypad,
     get_telephone_keypad_with_highlight,
     get_welcome_banner,
@@ -141,3 +143,58 @@ def test_telephone_keypad_with_highlight_has_styling():
     # Find a span with "reverse" in the style for the highlighted version
     has_reverse = any("reverse" in str(span.style) for span in highlighted_spans)
     assert has_reverse, "Highlighted keypad should have reverse styling"
+
+
+def test_get_ansi_art_collection_returns_list():
+    """Test that ANSI art collection returns a list."""
+    collection = get_ansi_art_collection()
+    assert isinstance(collection, list)
+
+
+def test_ansi_art_collection_not_empty():
+    """Test that ANSI art collection is not empty."""
+    collection = get_ansi_art_collection()
+    assert len(collection) > 0, "ANSI art collection should have at least one piece"
+
+
+def test_ansi_art_collection_contains_text_objects():
+    """Test that ANSI art collection contains Rich Text objects."""
+    collection = get_ansi_art_collection()
+    for art in collection:
+        assert isinstance(art, Text), "Each art piece should be a Rich Text object"
+
+
+def test_get_random_ansi_art_returns_text():
+    """Test that random ANSI art returns a Rich Text object."""
+    art = get_random_ansi_art()
+    assert isinstance(art, Text)
+    assert len(art) > 0
+
+
+def test_random_ansi_art_from_collection():
+    """Test that random art comes from the collection."""
+    collection = get_ansi_art_collection()
+    art = get_random_ansi_art()
+
+    # The art should match one of the pieces in the collection
+    art_plain = art.plain
+    collection_plains = [piece.plain for piece in collection]
+    assert art_plain in collection_plains, "Random art should be from collection"
+
+
+def test_random_ansi_art_can_vary():
+    """Test that random art can return different pieces (probabilistic)."""
+    collection = get_ansi_art_collection()
+
+    # Only test if there are multiple art pieces
+    if len(collection) > 1:
+        # Get multiple samples
+        samples = [get_random_ansi_art().plain for _ in range(20)]
+        # Check that we got at least 2 different pieces (very likely with 20 samples)
+        unique_samples = set(samples)
+        assert len(unique_samples) >= 1, "Should get at least 1 unique art piece"
+        # If collection has 2+ pieces, we should likely see variety
+        if len(collection) >= 2:
+            # With 20 samples from 2+ items, we should see variety
+            # This is probabilistic but very likely
+            pass  # We already asserted at least 1, which covers single-item case

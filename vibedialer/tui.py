@@ -18,6 +18,7 @@ from textual.widgets import (
 )
 
 from vibedialer.art import (
+    get_random_ansi_art,
     get_telephone_keypad,
     get_telephone_keypad_with_highlight,
     get_welcome_banner,
@@ -46,12 +47,17 @@ class WelcomeScreen(Screen):
     #continue-btn {
         margin-top: 2;
     }
+
+    #ansi-art {
+        margin-bottom: 2;
+    }
     """
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the welcome screen."""
         with Center():
             with Vertical(id="welcome-container"):
+                yield Static(get_random_ansi_art(), id="ansi-art")
                 yield Static(get_welcome_banner(), id="welcome-banner")
                 yield Button("Continue", id="continue-btn", variant="primary")
 
@@ -170,17 +176,12 @@ class MainMenuScreen(Screen):
                 yield Label("")
                 yield Label("📋 Pattern Requirements:")
                 yield Label(
-                    "  • Enter a partial phone number "
-                    "(e.g., 555-12 or 555-1234)"
+                    "  • Enter a partial phone number (e.g., 555-12 or 555-1234)"
                 )
                 yield Label("  • Use '-' as a wildcard for any digit")
+                yield Label("  • Example: '555-12' will dial 555-1200 through 555-1299")
                 yield Label(
-                    "  • Example: '555-12' will dial "
-                    "555-1200 through 555-1299"
-                )
-                yield Label(
-                    "  • Example: '555-1234' will dial "
-                    "just that specific number"
+                    "  • Example: '555-1234' will dial just that specific number"
                 )
                 yield Label("")
                 yield Label("💡 Input Methods:")
@@ -231,15 +232,22 @@ class MainMenuScreen(Screen):
         # Handle dialpad button presses
         if button_id and button_id.startswith("dial-"):
             digit = (
-                button_id.replace("dial-", "")
-                .replace("star", "*")
-                .replace("hash", "#")
+                button_id.replace("dial-", "").replace("star", "*").replace("hash", "#")
             )
             # Map digit buttons to actual digits
             digit_map = {
-                "0": "0", "1": "1", "2": "2", "3": "3", "4": "4",
-                "5": "5", "6": "6", "7": "7", "8": "8", "9": "9",
-                "*": "*", "#": "#"
+                "0": "0",
+                "1": "1",
+                "2": "2",
+                "3": "3",
+                "4": "4",
+                "5": "5",
+                "6": "6",
+                "7": "7",
+                "8": "8",
+                "9": "9",
+                "*": "*",
+                "#": "#",
             }
             if digit in digit_map:
                 self._add_digit(digit_map[digit])
@@ -594,8 +602,12 @@ class DialingScreen(Screen):
             current_number_label.update(f"{progress} {number}")
             current_status_label.update("Dialing...")
             current_status_label.remove_class(
-                "status-ringing", "status-busy", "status-modem",
-                "status-person", "status-error", "status-no_answer",
+                "status-ringing",
+                "status-busy",
+                "status-modem",
+                "status-person",
+                "status-error",
+                "status-no_answer",
             )
 
             await self.animate_keypad_for_number(number)
@@ -616,8 +628,12 @@ class DialingScreen(Screen):
         final_status = "Stopped" if not self.is_dialing else "Complete"
         current_status_label.update(final_status)
         current_status_label.remove_class(
-            "status-ringing", "status-busy", "status-modem",
-            "status-person", "status-error", "status-no_answer",
+            "status-ringing",
+            "status-busy",
+            "status-modem",
+            "status-person",
+            "status-error",
+            "status-no_answer",
         )
 
         self.is_dialing = False
@@ -648,8 +664,12 @@ class DialingScreen(Screen):
             current_status_label = self.query_one("#current-status", Label)
             current_status_label.update("Paused")
             current_status_label.remove_class(
-                "status-ringing", "status-busy", "status-modem",
-                "status-person", "status-error", "status-no_answer",
+                "status-ringing",
+                "status-busy",
+                "status-modem",
+                "status-person",
+                "status-error",
+                "status-no_answer",
             )
             pause_btn = self.query_one("#pause-btn", Button)
             pause_btn.label = "Resume"
@@ -699,8 +719,12 @@ class DialingScreen(Screen):
             current_status_label = self.query_one("#current-status", Label)
             current_status_label.update("Stopped")
             current_status_label.remove_class(
-                "status-ringing", "status-busy", "status-modem",
-                "status-person", "status-error", "status-no_answer",
+                "status-ringing",
+                "status-busy",
+                "status-modem",
+                "status-person",
+                "status-error",
+                "status-no_answer",
             )
             start_btn = self.query_one("#start-btn", Button)
             pause_btn = self.query_one("#pause-btn", Button)
@@ -722,8 +746,12 @@ class DialingScreen(Screen):
         current_number_label.update("---")
         current_status_label.update("Idle")
         current_status_label.remove_class(
-            "status-ringing", "status-busy", "status-modem",
-            "status-person", "status-error", "status-no_answer",
+            "status-ringing",
+            "status-busy",
+            "status-modem",
+            "status-person",
+            "status-error",
+            "status-no_answer",
         )
 
 
