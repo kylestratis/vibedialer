@@ -4,6 +4,10 @@
 
 A war dialer TUI application for sequential phone number dialing with modem, VoIP, and simulation backends. Written for the Practical Data Discord Vibecoding Hackathon almost entirely on a phone from a children's birthday party and, later, a brewery mostly using voice with Wispr Flow.
 
+## Legal
+
+I'm not responsible for anything, least of all anything you do with this tool, shenanigans you get up to, or legal trouble you get into, using this app or otherwise.
+
 ## Installation
 
 ### Install as a tool with uv (Recommended)
