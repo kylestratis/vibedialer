@@ -14,7 +14,7 @@ from vibedialer.resume import (
     read_dialed_numbers_from_csv,
     read_dialed_numbers_from_sqlite,
 )
-from vibedialer.sqlite_storage import SQLiteStorage
+from vibedialer.storage import SQLiteStorage
 
 
 @pytest.fixture

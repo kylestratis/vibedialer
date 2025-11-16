@@ -8,10 +8,14 @@ from pathlib import Path
 import pytest
 
 from vibedialer.backends import DialResult
-from vibedialer.csv_storage import CSVStorage
 from vibedialer.session import create_session_metadata
-from vibedialer.sqlite_storage import SQLiteStorage
-from vibedialer.storage import DryRunStorage, StorageType, create_storage
+from vibedialer.storage import (
+    CSVStorage,
+    DryRunStorage,
+    SQLiteStorage,
+    StorageType,
+    create_storage,
+)
 
 
 @pytest.fixture

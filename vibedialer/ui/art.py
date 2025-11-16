@@ -1,5 +1,8 @@
 """ASCII/ANSI art assets for VibeDialer."""
 
+import random
+from pathlib import Path
+
 from rich.console import Console
 from rich.text import Text
 
@@ -9,6 +12,92 @@ VAPORWAVE_CYAN = "#01CDFE"
 VAPORWAVE_PURPLE = "#B967FF"
 VAPORWAVE_YELLOW = "#FFFB96"
 VAPORWAVE_BLUE = "#05FFA1"
+
+# Path to ANSI art assets directory
+_ASSETS_DIR = Path(__file__).parent / "assets" / "ansi_art"
+
+
+def _load_ansi_art_files() -> list[str]:
+    """
+    Load all ANSI art text files from the assets directory.
+
+    Returns:
+        List of art strings loaded from .txt files
+    """
+    art_files = []
+
+    # Check if directory exists
+    if not _ASSETS_DIR.exists():
+        # Return a default piece if directory doesn't exist
+        return [
+            """
+╔═══════════════════════════════════════╗
+║                                       ║
+║    Welcome to the world of            ║
+║    War Dialing!                       ║
+║                                       ║
+╚═══════════════════════════════════════╝
+            """
+        ]
+
+    # Load all .txt files from the directory
+    for art_file in sorted(_ASSETS_DIR.glob("*.txt")):
+        try:
+            content = art_file.read_text(encoding="utf-8")
+            if content.strip():  # Only add non-empty files
+                art_files.append(content)
+        except Exception:
+            # Skip files that can't be read
+            continue
+
+    # If no valid files found, return default art
+    if not art_files:
+        art_files.append(
+            """
+╔═══════════════════════════════════════╗
+║                                       ║
+║    Welcome to the world of            ║
+║    War Dialing!                       ║
+║                                       ║
+╚═══════════════════════════════════════╝
+            """
+        )
+
+    return art_files
+
+
+def get_ansi_art_collection() -> list[Text]:
+    """
+    Get the collection of ANSI art pieces from the assets directory.
+
+    Loads all .txt files from assets/ansi_art/ and returns them as
+    styled Rich Text objects.
+
+    Returns:
+        List of Rich Text objects containing ANSI art
+    """
+    # Load art from files
+    art_texts = _load_ansi_art_files()
+
+    # Convert to Rich Text objects with vaporwave styling
+    collection = []
+    for art_text in art_texts:
+        art = Text()
+        art.append(art_text.strip(), style=VAPORWAVE_CYAN)
+        collection.append(art)
+
+    return collection
+
+
+def get_random_ansi_art() -> Text:
+    """
+    Get a random ANSI art piece from the collection.
+
+    Returns:
+        Rich Text object with a randomly selected ANSI art piece
+    """
+    collection = get_ansi_art_collection()
+    return random.choice(collection)
 
 
 def get_welcome_banner() -> Text:

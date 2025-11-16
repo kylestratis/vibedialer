@@ -1,6 +1,6 @@
 """Tests for enhanced modem backend features."""
 
-from vibedialer.modem import ModemBackend
+from vibedialer.backends import ModemBackend
 
 
 def test_modem_backend_parse_connect_with_speed():

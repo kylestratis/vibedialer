@@ -99,7 +99,7 @@ def test_create_backend_modem():
         BackendType.MODEM, port="/dev/ttyUSB0", baudrate=57600, timeout=30
     )
     # Import here to avoid issues if not available
-    from vibedialer.modem import ModemBackend
+    from vibedialer.backends import ModemBackend
 
     assert isinstance(backend, ModemBackend)
     assert backend.port == "/dev/ttyUSB0"
@@ -115,7 +115,7 @@ def test_create_backend_voip():
         auth_token="your_auth_token_here",
         from_number="+15551234567",
     )
-    from vibedialer.voip import VoIPBackend
+    from vibedialer.backends import VoIPBackend
 
     assert isinstance(backend, VoIPBackend)
     assert backend.account_sid == "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
@@ -130,7 +130,7 @@ def test_create_backend_ip_relay():
         relay_service_url="https://relay.example.com",
         api_key="test_key",
     )
-    from vibedialer.iprelay import IPRelayBackend
+    from vibedialer.backends import IPRelayBackend
 
     assert isinstance(backend, IPRelayBackend)
     assert backend.relay_service_url == "https://relay.example.com"
@@ -153,7 +153,7 @@ class TestTwilioVoIPBackend:
 
     def test_voip_backend_initialization(self):
         """Test VoIP backend can be initialized."""
-        from vibedialer.voip import VoIPBackend
+        from vibedialer.backends import VoIPBackend
 
         backend = VoIPBackend(
             account_sid="ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
@@ -169,7 +169,7 @@ class TestTwilioVoIPBackend:
 
     def test_voip_backend_normalize_phone_number_e164(self):
         """Test normalization of phone numbers to E.164 format."""
-        from vibedialer.voip import VoIPBackend
+        from vibedialer.backends import VoIPBackend
 
         backend = VoIPBackend(
             account_sid="AC123",
@@ -190,7 +190,7 @@ class TestTwilioVoIPBackend:
 
     def test_voip_backend_not_connected_returns_error(self):
         """Test that dialing without connection returns error."""
-        from vibedialer.voip import VoIPBackend
+        from vibedialer.backends import VoIPBackend
 
         backend = VoIPBackend(
             account_sid="AC123",

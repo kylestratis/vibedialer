@@ -2,7 +2,7 @@
 
 from unittest.mock import Mock, patch
 
-from vibedialer.voip import VoIPBackend
+from vibedialer.backends import VoIPBackend
 
 
 class TestAMDDetection:
@@ -125,8 +125,7 @@ class TestAMDDetection:
         assert result.answered_by == "machine_start"
         assert result.amd_duration == 4.1
         assert (
-            "machine" in result.message.lower()
-            or "voicemail" in result.message.lower()
+            "machine" in result.message.lower() or "voicemail" in result.message.lower()
         )
 
     def test_amd_unknown_triggers_recording(self):
@@ -374,11 +373,13 @@ class TestParallelAudioAnalysis:
         import concurrent.futures
 
         future = concurrent.futures.Future()
-        future.set_result({
-            "tone_type": "modem",
-            "peak_frequency": 1800.0,
-            "confidence": 0.88,
-        })
+        future.set_result(
+            {
+                "tone_type": "modem",
+                "peak_frequency": 1800.0,
+                "confidence": 0.88,
+            }
+        )
         mock_analyze_async.return_value = future
 
         backend = VoIPBackend(

@@ -8,7 +8,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client
 
-from vibedialer.backends import DialResult, TelephonyBackend
+from vibedialer.backends.base import DialResult, TelephonyBackend
 
 logger = logging.getLogger(__name__)
 

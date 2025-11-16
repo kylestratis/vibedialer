@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 
 from vibedialer.backends import DialResult
-from vibedialer.storage import ResultStorage
+from vibedialer.storage.base import ResultStorage
 
 logger = logging.getLogger(__name__)
 

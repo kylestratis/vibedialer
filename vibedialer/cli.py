@@ -6,12 +6,12 @@ import typer
 from rich.console import Console
 
 from vibedialer import __version__
-from vibedialer.art import display_keypad, display_welcome_screen
 from vibedialer.backends import BackendType
 from vibedialer.dialer import PhoneDialer
 from vibedialer.resume import prepare_resume
 from vibedialer.storage import StorageType
-from vibedialer.tui import VibeDialerApp
+from vibedialer.ui import display_keypad, display_welcome_screen
+from vibedialer.ui.tui import VibeDialerApp
 from vibedialer.validation import CountryCode
 
 console = Console()

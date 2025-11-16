@@ -100,13 +100,13 @@ def create_storage(storage_type: StorageType, **kwargs) -> ResultStorage:
         return DryRunStorage()
 
     elif storage_type == StorageType.CSV:
-        from vibedialer.csv_storage import CSVStorage
+        from vibedialer.storage.csv import CSVStorage
 
         filename = kwargs.get("filename", "vibedialer_results.csv")
         return CSVStorage(filename=filename)
 
     elif storage_type == StorageType.SQLITE:
-        from vibedialer.sqlite_storage import SQLiteStorage
+        from vibedialer.storage.sqlite import SQLiteStorage
 
         database = kwargs.get("database", "vibedialer_results.db")
         return SQLiteStorage(database=database)

@@ -3,7 +3,7 @@
 import pytest
 from textual.app import App
 
-from vibedialer.tui import VibeDialerApp
+from vibedialer.ui.tui import VibeDialerApp
 
 
 def test_tui_app_creation():
@@ -32,7 +32,6 @@ async def test_tui_app_mounts():
 @pytest.mark.asyncio
 async def test_tui_has_random_mode_toggle():
     """Test that the TUI has a toggle for random/sequential mode."""
-    from vibedialer.tui import MainMenuScreen, DialingScreen
 
     app = VibeDialerApp()
     async with app.run_test():
@@ -48,7 +47,6 @@ async def test_tui_has_random_mode_toggle():
 @pytest.mark.asyncio
 async def test_tui_displays_keypad():
     """Test that the TUI displays the telephone keypad."""
-    from vibedialer.tui import DialingScreen
 
     app = VibeDialerApp()
     async with app.run_test():
@@ -134,7 +132,7 @@ async def test_tui_has_hang_up_button():
 @pytest.mark.asyncio
 async def test_tui_pause_functionality():
     """Test that pause/resume functionality works."""
-    from vibedialer.tui import DialingScreen
+    from vibedialer.ui.tui import DialingScreen
 
     app = VibeDialerApp()
     async with app.run_test():
@@ -212,7 +210,6 @@ async def test_tui_progress_format():
         # The format should be "[i/total] number"
         test_progress = "[1/3]"
         test_number = "555-1200"
-        expected_format = f"{test_progress} {test_number}"
 
         # Just verify the format components are correct
         assert "[" in test_progress

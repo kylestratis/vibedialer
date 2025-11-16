@@ -200,7 +200,7 @@ def create_backend(backend_type: BackendType, **kwargs) -> TelephonyBackend:
         return SimulationBackend()
 
     elif backend_type == BackendType.MODEM:
-        from vibedialer.modem import ModemBackend
+        from vibedialer.backends.modem import ModemBackend
 
         port = kwargs.get("port", "/dev/ttyUSB0")
         baudrate = kwargs.get("baudrate", 57600)
@@ -208,7 +208,7 @@ def create_backend(backend_type: BackendType, **kwargs) -> TelephonyBackend:
         return ModemBackend(port=port, baudrate=baudrate, timeout=timeout)
 
     elif backend_type == BackendType.VOIP:
-        from vibedialer.voip import VoIPBackend
+        from vibedialer.backends.voip import VoIPBackend
 
         # Twilio VoIP backend
         account_sid = kwargs.get("account_sid", "")
@@ -225,7 +225,7 @@ def create_backend(backend_type: BackendType, **kwargs) -> TelephonyBackend:
         )
 
     elif backend_type == BackendType.IP_RELAY:
-        from vibedialer.iprelay import IPRelayBackend
+        from vibedialer.backends.iprelay import IPRelayBackend
 
         relay_service_url = kwargs.get("relay_service_url", "")
         api_key = kwargs.get("api_key")

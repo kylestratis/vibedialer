@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from vibedialer.modem import ModemBackend
+from vibedialer.backends import ModemBackend
 
 
 class TestModemAudioAnalysis:
@@ -143,9 +143,7 @@ class TestModemAudioAnalysis:
             # Low confidence should return None
             assert result is None
 
-    @pytest.mark.skipif(
-        True, reason="Requires pyaudio and hardware audio setup"
-    )
+    @pytest.mark.skipif(True, reason="Requires pyaudio and hardware audio setup")
     def test_audio_analysis_with_pyaudio(self):
         """Test real-time audio capture with pyaudio (requires hardware)."""
         # This test is skipped by default as it requires:

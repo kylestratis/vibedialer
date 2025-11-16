@@ -6,7 +6,7 @@ import pytest
 from textual.widgets import Button
 
 from vibedialer.backends import BackendType
-from vibedialer.tui import DialingScreen, VibeDialerApp
+from vibedialer.ui.tui import DialingScreen, VibeDialerApp
 
 
 class TestTUIStopDialing:
@@ -91,7 +91,7 @@ class TestTUIStopDialing:
             assert "Stopped" in label_text or "stopped" in label_text.lower()
 
     @pytest.mark.asyncio
-    @patch("vibedialer.voip.VoIPBackend")
+    @patch("vibedialer.backends.voip.VoIPBackend")
     async def test_stop_dialing_waits_for_voip_analyses(self, mock_voip):
         """Test that stop_dialing waits for pending VoIP audio analyses."""
         # Create mock VoIP backend with pending analyses
