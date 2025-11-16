@@ -10,10 +10,10 @@ CSV storage saves results to a comma-separated values file, which can be opened 
 
 **Usage:**
 ```bash
-# Default CSV storage (vibedialer_results.csv)
-vibedialer dial 555-12 --storage csv
+# Launch TUI (default) - storage can be configured in interface
+vibedialer
 
-# Custom filename
+# Or use dial command with custom storage
 vibedialer dial 555-12 --storage csv --output results.csv
 ```
 

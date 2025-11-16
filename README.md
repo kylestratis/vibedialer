@@ -4,7 +4,17 @@ A war dialer TUI application for sequential phone number dialing with modem, VoI
 
 ## Installation
 
-### Method 1: Install with uv (Recommended)
+### Install as a tool with uv (Recommended)
+
+```bash
+# From the project directory
+uv tool install .
+
+# Then run with
+uvx vibedialer
+```
+
+### Alternative: Install with uv pip
 
 ```bash
 # From the project directory
@@ -14,34 +24,38 @@ uv pip install .
 uv pip install -e .
 ```
 
-### Method 2: Install with pip
-
-```bash
-# From the project directory
-pip install .
-
-# Or install in editable mode for development
-pip install -e .
-```
-
-### Method 3: Install from Git (Future)
+### Install from Git (Future)
 
 ```bash
 # Once published, you'll be able to install directly from GitHub
-pip install git+https://github.com/kylestratis/vibedialer.git
+uv tool install git+https://github.com/kylestratis/vibedialer.git
 ```
 
 ## Usage
 
 After installation, you can run VibeDialer in several ways:
 
-### As a standalone command
+### Quick Start - Interactive TUI (Default)
 
 ```bash
-# Interactive TUI mode (default)
+# Launch the TUI interface (default behavior)
+uvx vibedialer
+
+# Or if installed with uv pip
+vibedialer
+```
+
+The TUI allows you to enter phone numbers, configure backends, and manage dialing sessions interactively.
+
+### Advanced Usage - dial command
+
+For more control and CLI mode, use the `dial` command:
+
+```bash
+# Interactive TUI mode with specific number pattern
 vibedialer dial 555-12
 
-# Non-interactive mode
+# Non-interactive CLI mode
 vibedialer dial 555-12 --no-interactive
 
 # With specific backend
@@ -76,20 +90,20 @@ vibedialer --help
 
 ```bash
 # Run as a module
-python -m vibedialer dial 555-12
+python -m vibedialer
 
 # Or with uv
-uv run python -m vibedialer dial 555-12
+uv run python -m vibedialer
 ```
 
 ### In development (without installation)
 
 ```bash
 # Using uv (from project directory)
-uv run vibedialer dial 555-12
+uv run vibedialer
 
-# Direct module execution
-uv run python -m vibedialer dial 555-12
+# With specific dial command
+uv run vibedialer dial 555-12
 ```
 
 ## Features
@@ -232,6 +246,14 @@ vibedialer/
 ## License
 
 See LICENSE file for details.
+
+## Documentation
+
+For detailed information on specific topics, see the following guides:
+
+- **[Backends](docs/BACKENDS.md)** - Telephony backend configuration (Simulation, Modem, VoIP, IP Relay)
+- **[Dialing](docs/DIALING.md)** - Phone number dialing guide, country codes, and session tracking
+- **[Storage](docs/STORAGE.md)** - Storage backend options (CSV, SQLite, Dry-run) and resuming sessions
 
 ## Safety Notes
 
