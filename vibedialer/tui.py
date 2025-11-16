@@ -152,6 +152,7 @@ class VibeDialerApp(App):
         storage_kwargs: dict | None = None,
         resume_numbers: list[str] | None = None,
         country_code: CountryCode | str = CountryCode.USA,
+        session_id: str | None = None,
         *args,
         **kwargs,
     ):
@@ -165,10 +166,14 @@ class VibeDialerApp(App):
         self.storage_kwargs = storage_kwargs or {}
         self.resume_numbers = resume_numbers
         self.country_code = country_code
+        self.session_id = session_id
         self.dialer = PhoneDialer(
             backend_type=backend_type,
             storage_type=storage_type,
             country_code=country_code,
+            session_id=session_id,
+            phone_pattern=self.phone_number,
+            randomize=self.randomize,
             **{**self.backend_kwargs, **self.storage_kwargs},
         )
         self.title = "VibeDialer"

@@ -38,6 +38,7 @@ class CSVStorage(ResultStorage):
         if not file_exists or file_path.stat().st_size == 0:
             self.csv_writer.writerow(
                 [
+                    "session_id",
                     "phone_number",
                     "status",
                     "timestamp",
@@ -63,6 +64,7 @@ class CSVStorage(ResultStorage):
 
         self.csv_writer.writerow(
             [
+                result.session_id,
                 result.phone_number,
                 result.status,
                 result.timestamp,
@@ -72,7 +74,10 @@ class CSVStorage(ResultStorage):
                 result.tone_type or "",
             ]
         )
-        logger.debug(f"Saved result to CSV: {result.phone_number}")
+        logger.debug(
+            f"Saved result to CSV: {result.phone_number} "
+            f"(session: {result.session_id})"
+        )
 
     def save_results(self, results: list[DialResult]) -> None:
         """
