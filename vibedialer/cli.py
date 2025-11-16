@@ -202,6 +202,16 @@ def dial(
             ),
         ),
     ] = "1",
+    tui_limit: Annotated[
+        int,
+        typer.Option(
+            "--tui-limit",
+            help=(
+                "Limit the number of phone numbers to dial in TUI mode "
+                "(useful for testing, 0 or negative means no limit)"
+            ),
+        ),
+    ] = 0,
 ) -> None:
     """
     Dial a phone number or range of numbers.
@@ -380,6 +390,7 @@ def dial(
             resume_numbers=resume_numbers,
             country_code=country_code_val,
             session_id=final_session_id,
+            tui_limit=tui_limit if tui_limit > 0 else None,
         )
         tui_app.phone_number = phone_number
         tui_app.randomize = random
