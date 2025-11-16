@@ -165,6 +165,11 @@ class MainMenuScreen(Screen):
         border: solid $primary;
     }
 
+    #pattern-input {
+        height: 3;
+        max-height: 3;
+    }
+
     #dialpad-section {
         width: auto;
         height: auto;
@@ -180,6 +185,7 @@ class MainMenuScreen(Screen):
     #validation-feedback {
         margin: 1 0;
         height: auto;
+        min-height: 1;
     }
 
     .validation-valid {
@@ -192,6 +198,21 @@ class MainMenuScreen(Screen):
 
     .validation-info {
         color: $warning;
+    }
+
+    #status-area {
+        height: auto;
+        padding: 2;
+        margin-bottom: 1;
+        border: solid $success;
+        background: $boost;
+    }
+
+    .status-grid-menu {
+        grid-size: 2 3;
+        grid-gutter: 1 0;
+        width: 100%;
+        height: auto;
     }
 
     #config-area {
@@ -315,9 +336,7 @@ class MainMenuScreen(Screen):
                     yield Label("  • Exchange (if included) must start with 2-9")
                     yield Label("")
                     yield Label("📞 Examples:")
-                    yield Label(
-                        "  • '555' → dials 555-200-0000 through 555-999-9999"
-                    )
+                    yield Label("  • '555' → dials 555-200-0000 through 555-999-9999")
                     yield Label(
                         "  • '555-234' → dials 555-234-0000 through 555-234-9999"
                     )
@@ -348,6 +367,27 @@ class MainMenuScreen(Screen):
                     # Interactive dialpad
                     with Center(id="dialpad-section"):
                         yield InteractiveDialpad()
+
+                # Current Status section
+                with Vertical(id="status-area"):
+                    yield Label("📊 Current Status:", id="status-header")
+                    with Grid(classes="status-grid-menu"):
+                        yield Label("Pattern:", classes="status-label")
+                        yield Label(
+                            "(empty)", id="status-pattern", classes="status-value"
+                        )
+                        yield Label("Backend:", classes="status-label")
+                        yield Label(
+                            self.backend_type.value.title(),
+                            id="status-backend",
+                            classes="status-value",
+                        )
+                        yield Label("Storage:", classes="status-label")
+                        yield Label(
+                            self.storage_type.value.upper(),
+                            id="status-storage",
+                            classes="status-value",
+                        )
 
                 # Configuration section
                 with Vertical(id="config-area"):
@@ -429,6 +469,8 @@ class MainMenuScreen(Screen):
     def on_mount(self) -> None:
         """Focus the input when screen mounts."""
         self.query_one("#pattern-input", Input).focus()
+        # Initialize validation feedback display
+        self._update_pattern_display()
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Update pattern display when text input changes."""
@@ -468,8 +510,14 @@ class MainMenuScreen(Screen):
         """Handle backend and storage selection changes."""
         if event.select.id == "backend-select" and event.value is not Select.BLANK:
             self.backend_type = event.value
+            # Update status display
+            status_backend = self.query_one("#status-backend", Label)
+            status_backend.update(self.backend_type.value.title())
         elif event.select.id == "storage-select" and event.value is not Select.BLANK:
             self.storage_type = event.value
+            # Update status display
+            status_storage = self.query_one("#status-storage", Label)
+            status_storage.update(self.storage_type.value.upper())
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle Enter key press to start dialing."""
@@ -558,9 +606,11 @@ class MainMenuScreen(Screen):
         """Update the pattern display label and validation feedback."""
         pattern_display = self.query_one("#pattern-display", Label)
         feedback_label = self.query_one("#validation-feedback", Label)
+        status_pattern = self.query_one("#status-pattern", Label)
 
         if self.phone_pattern:
             pattern_display.update(self.phone_pattern)
+            status_pattern.update(self.phone_pattern)
 
             # Validate the pattern
             is_valid, error = self.validator.validate_pattern(self.phone_pattern)
@@ -595,6 +645,7 @@ class MainMenuScreen(Screen):
                 feedback_label.add_class("validation-error")
         else:
             pattern_display.update("(empty)")
+            status_pattern.update("(empty)")
             feedback_label.update("Enter a pattern to begin")
             feedback_label.remove_class("validation-error", "validation-valid")
             feedback_label.add_class("validation-info")
