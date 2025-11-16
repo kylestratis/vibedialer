@@ -19,6 +19,8 @@ class ModemBackend(TelephonyBackend):
         baudrate: int = 57600,
         timeout: int = 30,
         enable_audio_analysis: bool = False,
+        audio_capture_file: str | None = None,
+        audio_confidence_threshold: float = 0.7,
     ):
         """
         Initialize modem backend.
@@ -28,12 +30,17 @@ class ModemBackend(TelephonyBackend):
             baudrate: Baud rate for serial connection (default: 57600)
             timeout: Timeout in seconds for dial attempts
             enable_audio_analysis: Enable advanced audio tone analysis
-                (requires pyaudio)
+            audio_capture_file: Path to audio file for analysis (if using
+                file-based capture instead of real-time pyaudio)
+            audio_confidence_threshold: Minimum confidence (0.0-1.0) to
+                accept FFT analysis result (default: 0.7)
         """
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
         self.enable_audio_analysis = enable_audio_analysis
+        self.audio_capture_file = audio_capture_file
+        self.audio_confidence_threshold = audio_confidence_threshold
         self.serial_conn: serial.Serial | None = None
         self._connected = False
 
@@ -363,29 +370,75 @@ class ModemBackend(TelephonyBackend):
 
     def _analyze_audio_tone(self) -> str | None:
         """
-        Analyze audio tone to determine carrier type.
+        Analyze audio tone to determine carrier type using FFT.
 
-        This is a placeholder for advanced audio frequency analysis.
-        When implemented, this would:
-        1. Capture audio from the modem line
-        2. Perform FFT (Fast Fourier Transform) to identify frequency peaks
-        3. Identify carrier types based on frequency:
-           - Fax CNG tone: ~1100 Hz
-           - Fax CED tone: ~2100 Hz
-           - Modem carrier: 1650-2400 Hz (depending on protocol)
-           - Voice: Broad spectrum 300-3400 Hz with varying patterns
+        This function uses FFT (Fast Fourier Transform) to identify frequency
+        peaks in captured audio and classify the tone type.
+
+        Frequency ranges:
+        - Fax CNG tone: ~1100 Hz
+        - Fax CED tone: ~2100 Hz
+        - Modem carrier: 1650-2400 Hz (depending on protocol)
+        - Voice: Broad spectrum 300-3400 Hz with varying patterns
 
         Returns:
-            Tone type string ("modem", "fax", "voice") or None if cannot determine
+            Tone type string ("modem", "fax", "voice") or None if cannot
+            determine or audio analysis disabled
 
         Note:
-            Requires pyaudio or similar audio capture library to implement.
-            For now, returns None (relies on modem response codes only).
+            Currently supports file-based analysis (via audio_capture_file).
+            Real-time pyaudio capture could be added in the future.
         """
-        # TODO: Implement audio frequency analysis
-        # This would require:
-        # - pyaudio for audio capture
-        # - numpy/scipy for FFT analysis
-        # - Frequency range detection logic
-        logger.debug("Audio analysis not yet implemented")
-        return None
+        if not self.enable_audio_analysis:
+            return None
+
+        # Check if we have an audio file to analyze
+        if not self.audio_capture_file:
+            logger.debug(
+                "Audio analysis enabled but no audio source available "
+                "(audio_capture_file not set)"
+            )
+            return None
+
+        try:
+            # Import here to avoid dependency if not using audio analysis
+            from vibedialer.audio_analysis import analyze_audio_buffer
+
+            logger.debug(f"Analyzing audio from {self.audio_capture_file}")
+
+            # Analyze the audio file
+            result = analyze_audio_buffer(self.audio_capture_file)
+
+            tone_type = result.get("tone_type")
+            confidence = result.get("confidence", 0.0)
+            peak_freq = result.get("peak_frequency")
+
+            # Only return result if confidence is high enough
+            if confidence >= self.audio_confidence_threshold:
+                logger.info(
+                    f"Audio analysis: {tone_type} @ {peak_freq}Hz "
+                    f"(confidence: {confidence:.2f})"
+                )
+
+                # Don't return "unknown" - let modem codes handle it
+                if tone_type in ["modem", "fax", "voice"]:
+                    return tone_type
+
+            else:
+                logger.debug(
+                    f"Audio analysis confidence too low: {confidence:.2f} < "
+                    f"{self.audio_confidence_threshold}"
+                )
+
+            return None
+
+        except ImportError:
+            logger.warning(
+                "Audio analysis requires scipy/numpy - falling back to "
+                "modem response codes only"
+            )
+            return None
+
+        except Exception as e:
+            logger.error(f"Error during audio analysis: {e}")
+            return None

@@ -258,3 +258,53 @@ def cleanup_recording(recording_sid: str, twilio_client) -> bool:
     except Exception as e:
         logger.error(f"Failed to delete recording {recording_sid}: {e}")
         return False
+
+
+def analyze_audio_buffer(audio_file_path: str) -> dict[str, any]:
+    """
+    Analyze audio from a file to determine tone type using FFT.
+
+    This function is designed for modem backends where audio is captured
+    from the phone line to a file (e.g., using pyaudio or similar).
+
+    Args:
+        audio_file_path: Path to audio file (.wav format)
+
+    Returns:
+        Dictionary with analysis results:
+        - tone_type: "modem", "fax", "voice", or "unknown"
+        - peak_frequency: Primary frequency in Hz (or None)
+        - confidence: Confidence score 0.0-1.0
+
+    Example:
+        >>> result = analyze_audio_buffer("/tmp/call_audio.wav")
+        >>> if result["tone_type"] == "fax":
+        >>>     print(f"Fax tone detected at {result['peak_frequency']} Hz")
+    """
+    try:
+        # Read WAV file from disk
+        sample_rate, audio = wavfile.read(audio_file_path)
+
+        # Convert to mono if stereo
+        if len(audio.shape) > 1:
+            audio = audio.mean(axis=1)
+
+        # Perform FFT analysis
+        return perform_fft_analysis(audio, sample_rate)
+
+    except FileNotFoundError:
+        logger.error(f"Audio file not found: {audio_file_path}")
+        return {
+            "tone_type": "unknown",
+            "peak_frequency": None,
+            "confidence": 0.0,
+            "error": "File not found",
+        }
+    except Exception as e:
+        logger.error(f"Error analyzing audio buffer from {audio_file_path}: {e}")
+        return {
+            "tone_type": "unknown",
+            "peak_frequency": None,
+            "confidence": 0.0,
+            "error": str(e),
+        }
