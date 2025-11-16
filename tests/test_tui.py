@@ -224,3 +224,116 @@ async def test_tui_no_limit_by_default():
     app = VibeDialerApp()
     # Default should be None, not 10
     assert app.tui_limit is None
+
+
+@pytest.mark.asyncio
+async def test_main_menu_has_validation_feedback():
+    """Test that the main menu screen has validation feedback label."""
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Navigate to menu screen
+        await app.push_screen("menu")
+
+        # Should have a validation feedback label
+        feedback_label = app.screen.query_one("#validation-feedback")
+        assert feedback_label is not None
+
+
+@pytest.mark.asyncio
+async def test_main_menu_displays_keypad_art():
+    """Test that the main menu screen displays keypad ANSI art."""
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Navigate to menu screen
+        await app.push_screen("menu")
+
+        # Should have keypad art displayed
+        keypad_art = app.screen.query_one("#keypad-art")
+        assert keypad_art is not None
+
+
+@pytest.mark.asyncio
+async def test_main_menu_pattern_input_exists():
+    """Test that the main menu has a pattern input field."""
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Navigate to menu screen
+        await app.push_screen("menu")
+
+        # Should have pattern input field
+        pattern_input = app.screen.query_one("#pattern-input")
+        assert pattern_input is not None
+
+
+@pytest.mark.asyncio
+async def test_dialing_screen_has_backend_display():
+    """Test that the dialing screen displays the current backend."""
+    from vibedialer.backends import BackendType
+
+    app = VibeDialerApp(backend_type=BackendType.SIMULATION)
+    async with app.run_test():
+        # Navigate to dialing screen
+        await app.push_screen("menu")
+        await app.push_screen("dialing")
+
+        # Should have backend display in status section
+        backend_label = app.screen.query_one("#current-backend")
+        assert backend_label is not None
+        # Check that it shows "Simulation"
+        assert "Simulation" in str(backend_label.render())
+
+
+@pytest.mark.asyncio
+async def test_dialing_screen_has_storage_settings():
+    """Test that the dialing screen has storage settings UI."""
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Navigate to dialing screen
+        await app.push_screen("menu")
+        await app.push_screen("dialing")
+
+        # Should have storage select dropdown
+        storage_select = app.screen.query_one("#storage-select")
+        assert storage_select is not None
+
+
+@pytest.mark.asyncio
+async def test_dialing_screen_has_output_file_input():
+    """Test that the dialing screen has output file input."""
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Navigate to dialing screen
+        await app.push_screen("menu")
+        await app.push_screen("dialing")
+
+        # Should have output file input
+        output_file_input = app.screen.query_one("#output-file-input")
+        assert output_file_input is not None
+
+
+@pytest.mark.asyncio
+async def test_dialing_screen_has_country_code_input():
+    """Test that the dialing screen has country code input."""
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Navigate to dialing screen
+        await app.push_screen("menu")
+        await app.push_screen("dialing")
+
+        # Should have country code input
+        country_code_input = app.screen.query_one("#country-code-input")
+        assert country_code_input is not None
+
+
+@pytest.mark.asyncio
+async def test_dialing_screen_has_tui_limit_input():
+    """Test that the dialing screen has TUI limit input."""
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Navigate to dialing screen
+        await app.push_screen("menu")
+        await app.push_screen("dialing")
+
+        # Should have TUI limit input
+        tui_limit_input = app.screen.query_one("#tui-limit-input")
+        assert tui_limit_input is not None

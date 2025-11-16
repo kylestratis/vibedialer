@@ -26,7 +26,7 @@ from vibedialer.ui.art import (
     get_telephone_keypad_with_highlight,
     get_welcome_banner,
 )
-from vibedialer.validation import CountryCode
+from vibedialer.validation import CountryCode, get_validator
 
 
 class WelcomeScreen(Screen):
@@ -155,6 +155,28 @@ class MainMenuScreen(Screen):
         margin: 1 0;
     }
 
+    #validation-feedback {
+        margin: 1 0;
+        height: auto;
+    }
+
+    .validation-valid {
+        color: $success;
+    }
+
+    .validation-error {
+        color: $error;
+    }
+
+    .validation-info {
+        color: $warning;
+    }
+
+    #keypad-display-menu {
+        margin-top: 2;
+        align: center middle;
+    }
+
     .button-row {
         height: auto;
         margin-top: 1;
@@ -165,6 +187,7 @@ class MainMenuScreen(Screen):
         """Initialize the main menu screen."""
         super().__init__(*args, **kwargs)
         self.phone_pattern = ""
+        self.validator = get_validator(CountryCode.USA)
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the main menu."""
@@ -176,9 +199,11 @@ class MainMenuScreen(Screen):
                 yield Label("")
                 yield Label("📋 Pattern Requirements:")
                 yield Label(
-                    "  • Enter a partial phone number (e.g., 555-12 or 555-1234)"
+                    "  • Enter a partial phone number (minimum 3 digits for area code)"
                 )
-                yield Label("  • Use '-' as a wildcard for any digit")
+                yield Label("  • Area code must start with 2-9 (not 0 or 1)")
+                yield Label("  • Exchange (if included) must start with 2-9")
+                yield Label("  • Example: '555' will dial all numbers in the 555 area code")
                 yield Label("  • Example: '555-12' will dial 555-1200 through 555-1299")
                 yield Label(
                     "  • Example: '555-1234' will dial just that specific number"
@@ -187,11 +212,13 @@ class MainMenuScreen(Screen):
                 yield Label("💡 Input Methods:")
                 yield Label("  • Type directly in the text field below, OR")
                 yield Label("  • Click the dialpad buttons to build your pattern")
+                yield Label("  • Press Enter to start dialing")
 
             # Input section
             with Vertical(id="input-area"):
                 yield Label("Current Pattern:", id="pattern-label")
                 yield Label("(empty)", id="pattern-display")
+                yield Label("", id="validation-feedback", classes="validation-info")
                 yield Label("")
                 yield Label("Text Input:")
                 yield Input(
@@ -213,6 +240,10 @@ class MainMenuScreen(Screen):
                         variant="success",
                     )
 
+            # Display telephone keypad
+            with Center(id="keypad-display-menu"):
+                yield Static(get_telephone_keypad(), id="keypad-art")
+
         yield Footer()
 
     def on_mount(self) -> None:
@@ -224,6 +255,21 @@ class MainMenuScreen(Screen):
         if event.input.id == "pattern-input":
             self.phone_pattern = event.value
             self._update_pattern_display()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle Enter key press to start dialing."""
+        if event.input.id == "pattern-input":
+            if self.phone_pattern:
+                # Validate before proceeding
+                is_valid, error = self.validator.validate_pattern(self.phone_pattern)
+                if is_valid:
+                    self.app.switch_screen("dialing")
+                else:
+                    # Show error in validation feedback
+                    feedback_label = self.query_one("#validation-feedback", Label)
+                    feedback_label.update(f"❌ Cannot start: {error}")
+                    feedback_label.remove_class("validation-valid", "validation-info")
+                    feedback_label.add_class("validation-error")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
@@ -285,12 +331,44 @@ class MainMenuScreen(Screen):
         self._update_pattern_display()
 
     def _update_pattern_display(self) -> None:
-        """Update the pattern display label."""
+        """Update the pattern display label and validation feedback."""
         pattern_display = self.query_one("#pattern-display", Label)
+        feedback_label = self.query_one("#validation-feedback", Label)
+
         if self.phone_pattern:
             pattern_display.update(self.phone_pattern)
+
+            # Validate the pattern
+            is_valid, error = self.validator.validate_pattern(self.phone_pattern)
+
+            if is_valid:
+                # Calculate how many numbers this pattern will generate
+                try:
+                    from vibedialer.dialer import PhoneDialer
+                    temp_dialer = PhoneDialer(
+                        backend_type=self.app.backend_type,
+                        storage_type=self.app.storage_type,
+                        country_code=self.app.country_code,
+                    )
+                    numbers = temp_dialer.generate_numbers(self.phone_pattern)
+                    count = len(numbers)
+                    temp_dialer.cleanup()
+                    feedback_label.update(f"✓ Valid pattern - will dial {count} number{'s' if count != 1 else ''}")
+                    feedback_label.remove_class("validation-error", "validation-info")
+                    feedback_label.add_class("validation-valid")
+                except Exception:
+                    feedback_label.update("✓ Valid pattern")
+                    feedback_label.remove_class("validation-error", "validation-info")
+                    feedback_label.add_class("validation-valid")
+            else:
+                feedback_label.update(f"❌ {error}")
+                feedback_label.remove_class("validation-valid", "validation-info")
+                feedback_label.add_class("validation-error")
         else:
             pattern_display.update("(empty)")
+            feedback_label.update("Enter a pattern to begin")
+            feedback_label.remove_class("validation-error", "validation-valid")
+            feedback_label.add_class("validation-info")
 
 
 class DialingScreen(Screen):
@@ -362,8 +440,40 @@ class DialingScreen(Screen):
         margin-top: 1;
     }
 
+    #storage-section {
+        height: auto;
+        margin-top: 1;
+    }
+
+    #country-code-section {
+        height: auto;
+        margin-top: 1;
+    }
+
+    #tui-limit-section {
+        height: auto;
+        margin-top: 1;
+    }
+
+    #output-file-section {
+        height: auto;
+        margin-top: 1;
+    }
+
     Select {
         width: 30;
+    }
+
+    #output-file-input {
+        width: 40;
+    }
+
+    #tui-limit-input {
+        width: 15;
+    }
+
+    #country-code-input {
+        width: 10;
     }
 
     #status-section {
@@ -381,6 +491,12 @@ class DialingScreen(Screen):
     }
 
     #current-status {
+        margin: 0 1;
+    }
+
+    #current-backend {
+        color: $accent;
+        text-style: bold;
         margin: 0 1;
     }
 
@@ -462,6 +578,12 @@ class DialingScreen(Screen):
             with Vertical(id="status-section"):
                 yield Label("Current Status:", id="status-header")
                 with Horizontal():
+                    yield Label("Backend:", id="backend-label")
+                    yield Label(
+                        self.backend_type.value.title(),
+                        id="current-backend",
+                    )
+                with Horizontal():
                     yield Label("Number:", id="number-label")
                     yield Label("---", id="current-number")
                 with Horizontal():
@@ -487,6 +609,39 @@ class DialingScreen(Screen):
                         value=self.backend_type,
                         id="backend-select",
                         allow_blank=False,
+                    )
+                with Horizontal(id="storage-section"):
+                    yield Label("Storage:")
+                    yield Select(
+                        options=[
+                            ("CSV", StorageType.CSV),
+                            ("SQLite", StorageType.SQLITE),
+                            ("Dry Run", StorageType.DRY_RUN),
+                        ],
+                        value=self.storage_type,
+                        id="storage-select",
+                        allow_blank=False,
+                    )
+                with Horizontal(id="output-file-section"):
+                    yield Label("Output File:")
+                    yield Input(
+                        placeholder="Leave empty for auto-generated filename",
+                        id="output-file-input",
+                        value=self.storage_kwargs.get("filename", self.storage_kwargs.get("database", "")),
+                    )
+                with Horizontal(id="country-code-section"):
+                    yield Label("Country Code:")
+                    yield Input(
+                        placeholder="1",
+                        id="country-code-input",
+                        value=str(self.country_code.value if isinstance(self.country_code, CountryCode) else self.country_code),
+                    )
+                with Horizontal(id="tui-limit-section"):
+                    yield Label("TUI Limit (0=unlimited):")
+                    yield Input(
+                        placeholder="0",
+                        id="tui-limit-input",
+                        value=str(self.tui_limit) if self.tui_limit else "0",
                     )
                 with Horizontal(id="mode-section"):
                     yield Label("Random Mode:")
@@ -533,7 +688,7 @@ class DialingScreen(Screen):
             self.app.pop_screen()
 
     def on_select_changed(self, event: Select.Changed) -> None:
-        """Handle backend selection changes."""
+        """Handle backend and storage selection changes."""
         if event.select.id == "backend-select" and event.value is not Select.BLANK:
             self.dialer.cleanup()
             self.backend_type = event.value
@@ -543,6 +698,49 @@ class DialingScreen(Screen):
                 country_code=self.country_code,
                 **{**self.backend_kwargs, **self.storage_kwargs},
             )
+            # Update the backend display in status section
+            backend_label = self.query_one("#current-backend", Label)
+            backend_label.update(self.backend_type.value.title())
+        elif event.select.id == "storage-select" and event.value is not Select.BLANK:
+            self.storage_type = event.value
+            # Reinitialize dialer with new storage type
+            self.dialer.cleanup()
+            self.dialer = PhoneDialer(
+                backend_type=self.backend_type,
+                storage_type=self.storage_type,
+                country_code=self.country_code,
+                **{**self.backend_kwargs, **self.storage_kwargs},
+            )
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Handle input field changes for settings."""
+        if event.input.id == "output-file-input":
+            output_file = event.value.strip()
+            if output_file:
+                if self.storage_type == StorageType.CSV:
+                    self.storage_kwargs["filename"] = output_file
+                elif self.storage_type == StorageType.SQLITE:
+                    self.storage_kwargs["database"] = output_file
+        elif event.input.id == "country-code-input":
+            try:
+                code = event.value.strip()
+                if code:
+                    # Try to find matching CountryCode enum
+                    for cc in CountryCode:
+                        if cc.value == code:
+                            self.country_code = cc
+                            break
+                    else:
+                        # If no match, use the string value
+                        self.country_code = code
+            except Exception:
+                pass
+        elif event.input.id == "tui-limit-input":
+            try:
+                limit = int(event.value.strip()) if event.value.strip() else 0
+                self.tui_limit = limit if limit > 0 else None
+            except ValueError:
+                pass
 
     async def animate_keypad_for_number(self, phone_number: str) -> None:
         """Animate the keypad by highlighting each digit."""
