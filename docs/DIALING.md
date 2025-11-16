@@ -15,6 +15,13 @@ This guide explains how to dial phone numbers and ranges using VibeDialer, inclu
 
 ## Quick Start
 
+### Launch the TUI (Default)
+
+```bash
+# Launch the interactive TUI - configure all settings in the interface
+vibedialer
+```
+
 ### Dial a Single Number
 
 ```bash

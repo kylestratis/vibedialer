@@ -30,8 +30,9 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main(
+    ctx: typer.Context,
     version: Annotated[
         bool | None,
         typer.Option(
@@ -42,9 +43,44 @@ def main(
             help="Show version and exit.",
         ),
     ] = None,
+    cli: Annotated[
+        bool,
+        typer.Option(
+            "--cli",
+            help="Use CLI mode instead of TUI (default is TUI mode).",
+        ),
+    ] = False,
 ) -> None:
-    """VibeDialer - A war dialer TUI application."""
-    pass
+    """VibeDialer - A war dialer TUI application.
+
+    By default, running 'vibedialer' launches the interactive TUI.
+    Use 'vibedialer --cli' for CLI mode or 'vibedialer dial' for advanced options.
+    """
+    # If a subcommand was invoked, let it handle execution
+    if ctx.invoked_subcommand is not None:
+        return
+
+    # No subcommand - run TUI by default, or CLI if --cli flag is set
+    if cli:
+        typer.echo("CLI mode requires a phone number. Use 'vibedialer dial --help' for options.")
+        raise typer.Exit(1)
+    else:
+        # Launch default TUI
+        tui_app = VibeDialerApp(
+            backend_type=BackendType.SIMULATION,
+            backend_kwargs={},
+            storage_type=StorageType.CSV,
+            storage_kwargs={},
+            resume_numbers=None,
+            country_code=CountryCode.USA_CANADA,
+            session_id=None,
+            tui_limit=None,
+        )
+        try:
+            tui_app.run()
+        finally:
+            if hasattr(tui_app, "dialer") and tui_app.dialer:
+                tui_app.dialer.cleanup()
 
 
 @app.command()

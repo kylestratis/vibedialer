@@ -10,6 +10,10 @@ The simulation backend is used for testing and demonstration. It generates reali
 
 **Usage:**
 ```bash
+# Launch TUI (default) - backend can be selected in the interface
+vibedialer
+
+# Or specify backend with dial command
 vibedialer dial 555-12 --backend simulation
 ```
 
