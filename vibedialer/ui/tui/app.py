@@ -161,6 +161,7 @@ class MainMenuScreen(Screen):
     #input-area {
         height: auto;
         padding: 2;
+        margin-bottom: 1;
         border: solid $primary;
     }
 
@@ -191,6 +192,19 @@ class MainMenuScreen(Screen):
 
     .validation-info {
         color: $warning;
+    }
+
+    #config-area {
+        height: auto;
+        padding: 2;
+        margin-bottom: 1;
+        border: solid $accent;
+        background: $boost;
+    }
+
+    #actions-area {
+        height: auto;
+        padding: 2;
     }
 
     #keypad-display-menu {
@@ -328,7 +342,8 @@ class MainMenuScreen(Screen):
                     with Center(id="dialpad-section"):
                         yield InteractiveDialpad()
 
-                    # Configuration section
+                # Configuration section
+                with Vertical(id="config-area"):
                     yield Label("")
                     yield Label("⚙️ Configuration:", id="config-header")
                     with Horizontal(id="backend-section"):
@@ -387,7 +402,8 @@ class MainMenuScreen(Screen):
                         yield Label("Random Mode:")
                         yield Switch(id="random-mode-switch", value=self.randomize)
 
-                    # Control buttons
+                # Control buttons and actions
+                with Vertical(id="actions-area"):
                     with Horizontal(classes="button-row"):
                         yield Button("Clear", id="clear-btn", variant="warning")
                         yield Button("Backspace", id="backspace-btn")
