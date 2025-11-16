@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# VibeDialer - A war dialer TUI application
+#
+# Usage:
+#   ./vibe                          # Start interactive TUI with welcome screen
+#   ./vibe dial 555-12              # Dial phone numbers (interactive by default)
+#   ./vibe dial 555-12 --no-interactive  # CLI mode
+#   ./vibe welcome                  # Show welcome screen
+#   ./vibe keypad                   # Show keypad ASCII art
+#   ./vibe --help                   # Show help
+#
+# This script uses uv to manage dependencies and run the application.
+# Make sure uv is installed: https://docs.astral.sh/uv/
+
+# Check if uv is installed
+if ! command -v uv &> /dev/null; then
+    echo "Error: uv is not installed."
+    echo "Please install uv: curl -LsSf https://astral.sh/uv/install.sh | sh"
+    echo "Or visit: https://docs.astral.sh/uv/"
+    exit 1
+fi
+
+# If no arguments provided, start TUI with welcome screen
+if [ $# -eq 0 ]; then
+    exec uv run python -m vibedialer dial 555-12 --show-welcome --tui-limit 10
+else
+    # Pass all arguments to vibedialer
+    exec uv run python -m vibedialer "$@"
+fi
