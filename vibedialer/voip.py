@@ -1,7 +1,9 @@
 """VoIP backend for VibeDialer using Twilio."""
 
+import atexit
 import logging
 import time
+from concurrent.futures import Future, ThreadPoolExecutor
 
 from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client
@@ -31,6 +33,14 @@ class VoIPBackend(TelephonyBackend):
         from_number: str,
         timeout: int = 30,
         twiml_url: str | None = None,
+        enable_amd: bool = True,
+        amd_timeout: int = 5,
+        enable_recording: bool = True,
+        recording_duration: int = 10,
+        enable_audio_analysis: bool = True,
+        async_analysis: bool = True,
+        cleanup_recordings: bool = True,
+        max_analysis_workers: int = 4,
     ):
         """
         Initialize Twilio VoIP backend.
@@ -42,6 +52,14 @@ class VoIPBackend(TelephonyBackend):
                 (E.164 format, e.g., '+15551234567')
             timeout: Max time to wait for call connection (default: 30)
             twiml_url: Optional TwiML URL for call instructions
+            enable_amd: Enable Answering Machine Detection (default: True)
+            amd_timeout: AMD detection timeout in seconds (default: 5)
+            enable_recording: Enable call recording for fax/unknown (default: True)
+            recording_duration: Max recording duration in seconds (default: 10)
+            enable_audio_analysis: Enable FFT audio analysis (default: True)
+            async_analysis: Run audio analysis in parallel (default: True)
+            cleanup_recordings: Delete recordings after analysis (default: True)
+            max_analysis_workers: Max parallel analysis workers (default: 4)
         """
         self.account_sid = account_sid
         self.auth_token = auth_token
@@ -51,6 +69,33 @@ class VoIPBackend(TelephonyBackend):
         self.client: Client | None = None
         self._connected = False
         self.current_call = None
+
+        # AMD settings
+        self.enable_amd = enable_amd
+        self.amd_timeout = amd_timeout
+
+        # Recording settings
+        self.enable_recording = enable_recording
+        self.recording_duration = recording_duration
+        self.cleanup_recordings = cleanup_recordings
+
+        # Audio analysis settings
+        self.enable_audio_analysis = enable_audio_analysis
+        self.async_analysis = async_analysis
+
+        # Track pending analyses and recordings
+        self.pending_analyses: dict[str, Future] = {}
+        self.pending_recordings: list[str] = []
+
+        # Thread pool for async audio analysis
+        self.analysis_executor = (
+            ThreadPoolExecutor(max_workers=max_analysis_workers)
+            if async_analysis and enable_audio_analysis
+            else None
+        )
+
+        # Register cleanup handler
+        atexit.register(self._cleanup_on_exit)
 
     def connect(self) -> bool:
         """
@@ -93,12 +138,23 @@ class VoIPBackend(TelephonyBackend):
             return False
 
     def disconnect(self) -> None:
-        """Disconnect from Twilio service."""
+        """Disconnect from Twilio service and cleanup resources."""
         if self.current_call:
             try:
                 self.hangup()
             except Exception as e:
                 logger.error(f"Error hanging up during disconnect: {e}")
+
+        # Wait for pending analyses to complete
+        self._wait_for_pending_analyses()
+
+        # Cleanup recordings if enabled
+        if self.cleanup_recordings:
+            self._cleanup_recordings()
+
+        # Shutdown thread pool
+        if self.analysis_executor:
+            self.analysis_executor.shutdown(wait=True)
 
         self.client = None
         self._connected = False
@@ -127,15 +183,34 @@ class VoIPBackend(TelephonyBackend):
         logger.info(f"Dialing via Twilio: {to_number}")
 
         try:
+            # Build call parameters
+            call_params = {
+                "to": to_number,
+                "from_": self.from_number,
+                "url": self.twiml_url,
+                "timeout": self.timeout,
+                "status_callback_event": [
+                    "initiated",
+                    "ringing",
+                    "answered",
+                    "completed",
+                ],
+            }
+
+            # Add AMD parameters if enabled
+            if self.enable_amd:
+                call_params["machine_detection"] = "Enable"
+                call_params["machine_detection_timeout"] = self.amd_timeout
+
+            # Add recording parameters if enabled
+            if self.enable_recording:
+                call_params["record"] = True
+                call_params["recording_status_callback_event"] = ["completed"]
+                call_params["recording_channels"] = "mono"
+                call_params["recording_track"] = "both"
+
             # Initiate the call
-            call = self.client.calls.create(
-                to=to_number,
-                from_=self.from_number,
-                url=self.twiml_url,
-                timeout=self.timeout,
-                # Request status callbacks for better detection
-                status_callback_event=["initiated", "ringing", "answered", "completed"],
-            )
+            call = self.client.calls.create(**call_params)
 
             self.current_call = call
 
@@ -238,50 +313,159 @@ class VoIPBackend(TelephonyBackend):
 
     def _analyze_call_result(self, call, phone_number: str) -> DialResult:
         """
-        Analyze Twilio call result and create DialResult.
+        Analyze Twilio call result with AMD and audio analysis.
 
         Args:
             call: Twilio call object
             phone_number: Original phone number dialed
 
         Returns:
-            DialResult with detected status
+            DialResult with detected status and analysis
         """
-        status_map = {
-            "completed": "person",  # Call was answered and completed
-            "busy": "busy",
-            "no-answer": "no_answer",
-            "failed": "error",
-            "canceled": "error",
-        }
+        # Extract AMD results if available
+        answered_by = getattr(call, "answered_by", None)
+        amd_duration = getattr(call, "answering_machine_detection_duration", None)
+
+        # Convert AMD duration to float if present
+        if amd_duration is not None:
+            try:
+                amd_duration = float(amd_duration)
+            except (ValueError, TypeError):
+                amd_duration = None
 
         twilio_status = call.status
-        our_status = status_map.get(twilio_status, "error")
+        duration = call.duration or 0
 
-        # Determine if call was successful
-        success = twilio_status == "completed"
+        # Initialize result fields
+        success = False
+        our_status = "error"
+        message = ""
+        carrier_detected = False
+        tone_type = None
+        fft_peak_frequency = None
+        fft_confidence = None
+        recording_url = None
+        recording_duration = None
 
-        # Build message
-        if success:
-            duration = call.duration or 0
-            message = f"Call answered, duration: {duration}s"
-
-            # Try to detect modem carriers based on very short durations
-            # (modems typically disconnect quickly after handshake)
-            if duration and int(duration) < 3:
-                our_status = "modem"
+        # Process based on call status and AMD results
+        if twilio_status == "completed":
+            # Call was answered - determine what answered it
+            if answered_by == "human":
+                success = True
+                our_status = "person"
                 message = (
-                    f"Possible modem carrier detected (short duration: {duration}s)"
+                    f"Human answered (AMD: {amd_duration:.1f}s), duration: {duration}s"
                 )
-        else:
-            message = f"Call {twilio_status}"
-            if call.end_time:
-                message += f" at {call.end_time}"
 
-        # Log call details
+            elif answered_by == "fax":
+                success = True
+                our_status = "modem"
+                carrier_detected = True
+                tone_type = "fax"
+                message = f"Fax detected (AMD: {amd_duration:.1f}s)"
+
+                # Get recording and perform FFT to confirm fax vs modem
+                recording_url, recording_duration = self._get_recording(call.sid)
+                if recording_url and self.enable_audio_analysis:
+                    fft_result = self._analyze_audio(call.sid, recording_url)
+                    if fft_result:
+                        tone_type = fft_result.get("tone_type", tone_type)
+                        fft_peak_frequency = fft_result.get("peak_frequency")
+                        fft_confidence = fft_result.get("confidence")
+
+                        # Update message with FFT result if different
+                        if tone_type != "fax":
+                            message = (
+                                f"{tone_type.capitalize()} carrier detected "
+                                f"(AMD said fax, FFT corrected)"
+                            )
+
+            elif answered_by in [
+                "machine_start",
+                "machine_end_beep",
+                "machine_end_silence",
+                "machine_end_other",
+            ]:
+                success = False
+                our_status = "no_answer"  # Voicemail = no human
+                message = f"Voicemail/machine detected (AMD: {amd_duration:.1f}s)"
+
+            elif answered_by == "unknown":
+                # AMD couldn't determine - use recording + FFT
+                recording_url, recording_duration = self._get_recording(call.sid)
+                if recording_url and self.enable_audio_analysis:
+                    fft_result = self._analyze_audio(call.sid, recording_url)
+                    if fft_result:
+                        tone_type = fft_result.get("tone_type")
+                        fft_peak_frequency = fft_result.get("peak_frequency")
+                        fft_confidence = fft_result.get("confidence")
+
+                        if tone_type in ["modem", "fax"]:
+                            success = True
+                            our_status = "modem"
+                            carrier_detected = True
+                            message = (
+                                f"{tone_type.capitalize()} detected via FFT "
+                                f"(AMD unknown)"
+                            )
+                        elif tone_type == "voice":
+                            success = True
+                            our_status = "person"
+                            message = "Voice detected via FFT (AMD unknown)"
+                        else:
+                            success = False
+                            our_status = "error"
+                            message = (
+                                f"Unknown signal (AMD: {amd_duration:.1f}s, "
+                                f"FFT inconclusive)"
+                            )
+                else:
+                    # No recording or analysis - fall back to duration heuristic
+                    if duration and int(duration) < 3:
+                        success = True
+                        our_status = "modem"
+                        carrier_detected = True
+                        message = (
+                            f"Possible carrier (AMD unknown, "
+                            f"short duration: {duration}s)"
+                        )
+                    else:
+                        success = True
+                        our_status = "person"
+                        message = (
+                            f"Answered but unknown type (AMD: {amd_duration:.1f}s)"
+                        )
+
+            else:
+                # No AMD result - fall back to old behavior
+                if duration and int(duration) < 3:
+                    success = True
+                    our_status = "modem"
+                    carrier_detected = True
+                    message = f"Possible modem carrier (short duration: {duration}s)"
+                else:
+                    success = True
+                    our_status = "person"
+                    message = f"Call answered, duration: {duration}s"
+
+        elif twilio_status == "busy":
+            our_status = "busy"
+            message = "Busy signal"
+
+        elif twilio_status == "no-answer":
+            our_status = "no_answer"
+            message = "No answer"
+
+        elif twilio_status in ["failed", "canceled"]:
+            our_status = "error"
+            message = f"Call {twilio_status}"
+
+        # Log detailed call results
         logger.info(
             f"Call to {phone_number}: status={twilio_status}, "
-            f"duration={call.duration}, price={call.price}"
+            f"our_status={our_status}, answered_by={answered_by}, "
+            f"duration={duration}, amd_duration={amd_duration}, "
+            f"tone_type={tone_type}, fft_freq={fft_peak_frequency}"
         )
 
         return DialResult(
@@ -289,4 +473,140 @@ class VoIPBackend(TelephonyBackend):
             status=our_status,
             message=message,
             phone_number=phone_number,
+            carrier_detected=carrier_detected,
+            tone_type=tone_type,
+            answered_by=answered_by,
+            amd_duration=amd_duration,
+            fft_peak_frequency=fft_peak_frequency,
+            fft_confidence=fft_confidence,
+            recording_url=recording_url,
+            recording_duration=recording_duration,
         )
+
+    def _get_recording(self, call_sid: str) -> tuple[str | None, float | None]:
+        """
+        Get recording URL for a call.
+
+        Args:
+            call_sid: Twilio call SID
+
+        Returns:
+            Tuple of (recording_url, duration) or (None, None) if not found
+        """
+        if not self.enable_recording or not self.client:
+            return None, None
+
+        try:
+            # Fetch recordings for this call
+            recordings = self.client.recordings.list(call_sid=call_sid, limit=1)
+
+            if recordings:
+                recording = recordings[0]
+                # Build full URL for WAV format
+                recording_url = (
+                    f"https://api.twilio.com{recording.uri.replace('.json', '.wav')}"
+                )
+                duration = float(recording.duration) if recording.duration else None
+
+                # Track recording for cleanup
+                self.pending_recordings.append(recording.sid)
+
+                logger.debug(f"Found recording for call {call_sid}: {recording.sid}")
+                return recording_url, duration
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch recording for call {call_sid}: {e}")
+
+        return None, None
+
+    def _analyze_audio(self, call_sid: str, recording_url: str) -> dict | None:
+        """
+        Analyze audio recording using FFT.
+
+        Args:
+            call_sid: Call SID for tracking
+            recording_url: URL to recording
+
+        Returns:
+            Analysis result dict or None
+        """
+        if not self.enable_audio_analysis:
+            return None
+
+        try:
+            if self.async_analysis and self.analysis_executor:
+                # Run analysis asynchronously
+                from vibedialer.audio_analysis import analyze_recording_async
+
+                future = analyze_recording_async(recording_url, self.analysis_executor)
+                self.pending_analyses[call_sid] = future
+
+                # For async, try to get result with short timeout
+                # If not ready, return None and result will be available later
+                try:
+                    return future.result(timeout=0.1)
+                except Exception:
+                    logger.debug(f"Audio analysis for {call_sid} pending...")
+                    return None
+            else:
+                # Run analysis synchronously
+                from vibedialer.audio_analysis import analyze_recording
+
+                return analyze_recording(recording_url)
+
+        except Exception as e:
+            logger.error(f"Audio analysis failed for {call_sid}: {e}")
+            return None
+
+    def _wait_for_pending_analyses(self, timeout: float = 5.0) -> None:
+        """
+        Wait for all pending audio analyses to complete.
+
+        Args:
+            timeout: Max time to wait for each analysis
+        """
+        if not self.pending_analyses:
+            return
+
+        logger.info(f"Waiting for {len(self.pending_analyses)} pending analyses...")
+
+        for call_sid, future in list(self.pending_analyses.items()):
+            try:
+                result = future.result(timeout=timeout)
+                logger.debug(
+                    f"Analysis for {call_sid} completed: {result.get('tone_type')}"
+                )
+            except Exception as e:
+                logger.warning(f"Analysis for {call_sid} failed or timed out: {e}")
+
+        self.pending_analyses.clear()
+
+    def _cleanup_recordings(self) -> None:
+        """Delete all pending recordings from Twilio."""
+        if not self.pending_recordings or not self.client:
+            return
+
+        logger.info(f"Cleaning up {len(self.pending_recordings)} recordings...")
+
+        for recording_sid in list(self.pending_recordings):
+            try:
+                from vibedialer.audio_analysis import cleanup_recording
+
+                cleanup_recording(recording_sid, self.client)
+            except Exception as e:
+                logger.warning(f"Failed to cleanup recording {recording_sid}: {e}")
+
+        self.pending_recordings.clear()
+
+    def _cleanup_on_exit(self) -> None:
+        """Cleanup handler called on program exit."""
+        try:
+            if self._connected:
+                logger.info("Cleaning up VoIP backend on exit...")
+                self._wait_for_pending_analyses(timeout=2.0)
+                if self.cleanup_recordings:
+                    self._cleanup_recordings()
+                if self.analysis_executor:
+                    self.analysis_executor.shutdown(wait=False)
+        except Exception as e:
+            logger.error(f"Error during exit cleanup: {e}")

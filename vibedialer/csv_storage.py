@@ -46,6 +46,12 @@ class CSVStorage(ResultStorage):
                     "message",
                     "carrier_detected",
                     "tone_type",
+                    "answered_by",
+                    "amd_duration",
+                    "fft_peak_frequency",
+                    "fft_confidence",
+                    "recording_url",
+                    "recording_duration",
                 ]
             )
             self.file_handle.flush()
@@ -72,11 +78,16 @@ class CSVStorage(ResultStorage):
                 result.message,
                 result.carrier_detected,
                 result.tone_type or "",
+                result.answered_by or "",
+                result.amd_duration or "",
+                result.fft_peak_frequency or "",
+                result.fft_confidence or "",
+                result.recording_url or "",
+                result.recording_duration or "",
             ]
         )
         logger.debug(
-            f"Saved result to CSV: {result.phone_number} "
-            f"(session: {result.session_id})"
+            f"Saved result to CSV: {result.phone_number} (session: {result.session_id})"
         )
 
     def save_results(self, results: list[DialResult]) -> None:

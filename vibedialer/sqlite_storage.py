@@ -45,7 +45,13 @@ class SQLiteStorage(ResultStorage):
                 success BOOLEAN NOT NULL,
                 message TEXT,
                 carrier_detected BOOLEAN,
-                tone_type TEXT
+                tone_type TEXT,
+                answered_by TEXT,
+                amd_duration REAL,
+                fft_peak_frequency REAL,
+                fft_confidence REAL,
+                recording_url TEXT,
+                recording_duration REAL
             )
         """)
 
@@ -87,6 +93,9 @@ class SQLiteStorage(ResultStorage):
             ON dial_results(status)
         """)
 
+        # Migrate existing databases to add new AMD/FFT columns if needed
+        self._migrate_schema(cursor)
+
         self.connection.commit()
 
         if not db_exists:
@@ -110,8 +119,9 @@ class SQLiteStorage(ResultStorage):
             """
             INSERT INTO dial_results
             (session_id, phone_number, status, timestamp, success, message,
-             carrier_detected, tone_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             carrier_detected, tone_type, answered_by, amd_duration,
+             fft_peak_frequency, fft_confidence, recording_url, recording_duration)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 result.session_id,
@@ -122,6 +132,12 @@ class SQLiteStorage(ResultStorage):
                 result.message,
                 result.carrier_detected,
                 result.tone_type,
+                result.answered_by,
+                result.amd_duration,
+                result.fft_peak_frequency,
+                result.fft_confidence,
+                result.recording_url,
+                result.recording_duration,
             ),
         )
 
@@ -152,6 +168,12 @@ class SQLiteStorage(ResultStorage):
                 result.message,
                 result.carrier_detected,
                 result.tone_type,
+                result.answered_by,
+                result.amd_duration,
+                result.fft_peak_frequency,
+                result.fft_confidence,
+                result.recording_url,
+                result.recording_duration,
             )
             for result in results
         ]
@@ -160,8 +182,9 @@ class SQLiteStorage(ResultStorage):
             """
             INSERT INTO dial_results
             (session_id, phone_number, status, timestamp, success, message,
-             carrier_detected, tone_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             carrier_detected, tone_type, answered_by, amd_duration,
+             fft_peak_frequency, fft_confidence, recording_url, recording_duration)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             data,
         )
@@ -279,6 +302,39 @@ class SQLiteStorage(ResultStorage):
 
         row = cursor.fetchone()
         return row[0] if row else None
+
+    def _migrate_schema(self, cursor) -> None:
+        """
+        Migrate existing database schema to add new AMD/FFT columns.
+
+        Args:
+            cursor: Database cursor
+        """
+        # Get existing columns
+        cursor.execute("PRAGMA table_info(dial_results)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+
+        # Define new columns to add
+        new_columns = {
+            "answered_by": "TEXT",
+            "amd_duration": "REAL",
+            "fft_peak_frequency": "REAL",
+            "fft_confidence": "REAL",
+            "recording_url": "TEXT",
+            "recording_duration": "REAL",
+        }
+
+        # Add missing columns
+        for column_name, column_type in new_columns.items():
+            if column_name not in existing_columns:
+                try:
+                    cursor.execute(
+                        f"ALTER TABLE dial_results ADD COLUMN "
+                        f"{column_name} {column_type}"
+                    )
+                    logger.info(f"Added column '{column_name}' to dial_results table")
+                except Exception as e:
+                    logger.warning(f"Failed to add column '{column_name}': {e}")
 
     def close(self) -> None:
         """Close the database connection."""
