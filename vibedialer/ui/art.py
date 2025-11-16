@@ -46,7 +46,19 @@ def _load_ansi_art_files() -> list[str]:
     for pattern in ["*.txt", "*.ans", "*.ANS"]:
         for art_file in sorted(_ASSETS_DIR.glob(pattern)):
             try:
-                content = art_file.read_text(encoding="utf-8")
+                # .ANS files typically use CP437 encoding (DOS/BBS era)
+                # .txt files typically use UTF-8
+                if art_file.suffix.lower() in [".ans"]:
+                    # Try CP437 first for .ANS files
+                    try:
+                        content = art_file.read_text(encoding="cp437")
+                    except (UnicodeDecodeError, LookupError):
+                        # Fallback to latin-1 which accepts all byte values
+                        content = art_file.read_text(encoding="latin-1")
+                else:
+                    # Use UTF-8 for .txt files
+                    content = art_file.read_text(encoding="utf-8")
+
                 if content.strip():  # Only add non-empty files
                     art_files.append(content)
             except Exception:

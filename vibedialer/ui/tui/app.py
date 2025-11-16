@@ -39,27 +39,35 @@ class WelcomeScreen(Screen):
     }
 
     #welcome-container {
-        width: auto;
+        width: 100%;
+        max-width: 120;
         height: auto;
         padding: 2;
     }
 
     #continue-btn {
         margin-top: 2;
+        width: 100%;
     }
 
     #ansi-art {
         margin-bottom: 2;
+        text-align: center;
+        width: 100%;
+    }
+
+    #welcome-banner {
+        text-align: center;
+        width: 100%;
     }
     """
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the welcome screen."""
-        with Center():
-            with Vertical(id="welcome-container"):
-                yield Static(get_random_ansi_art(), id="ansi-art")
-                yield Static(get_welcome_banner(), id="welcome-banner")
-                yield Button("Continue", id="continue-btn", variant="primary")
+        with Vertical(id="welcome-container"):
+            yield Static(get_random_ansi_art(), id="ansi-art")
+            yield Static(get_welcome_banner(), id="welcome-banner")
+            yield Button("Continue", id="continue-btn", variant="primary")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press to continue to main menu."""
@@ -500,20 +508,34 @@ class DialingScreen(Screen):
         background: $boost;
     }
 
+    .status-grid {
+        grid-size: 2 3;
+        grid-gutter: 1 0;
+        width: 100%;
+        height: auto;
+    }
+
+    .status-label {
+        width: 15;
+        text-align: right;
+        padding-right: 1;
+    }
+
+    .status-value {
+        width: 1fr;
+    }
+
     #current-number {
         color: $success;
         text-style: bold;
-        margin: 0 1;
     }
 
     #current-status {
-        margin: 0 1;
     }
 
     #current-backend {
         color: $accent;
         text-style: bold;
-        margin: 0 1;
     }
 
     .status-ringing {
@@ -593,18 +615,17 @@ class DialingScreen(Screen):
             # Status display section
             with Vertical(id="status-section"):
                 yield Label("Current Status:", id="status-header")
-                with Horizontal():
-                    yield Label("Backend:", id="backend-label")
+                with Grid(classes="status-grid"):
+                    yield Label("Backend:", classes="status-label")
                     yield Label(
                         self.backend_type.value.title(),
                         id="current-backend",
+                        classes="status-value",
                     )
-                with Horizontal():
-                    yield Label("Number:", id="number-label")
-                    yield Label("---", id="current-number")
-                with Horizontal():
-                    yield Label("Status:", id="status-label")
-                    yield Label("Idle", id="current-status")
+                    yield Label("Number:", classes="status-label")
+                    yield Label("---", id="current-number", classes="status-value")
+                    yield Label("Status:", classes="status-label")
+                    yield Label("Idle", id="current-status", classes="status-value")
 
             with Vertical(id="input-section"):
                 yield Label("Enter phone number or partial number:")
@@ -721,8 +742,11 @@ class DialingScreen(Screen):
                 **{**self.backend_kwargs, **self.storage_kwargs},
             )
             # Update the backend display in status section
-            backend_label = self.query_one("#current-backend", Label)
-            backend_label.update(self.backend_type.value.title())
+            try:
+                backend_label = self.query_one("#current-backend", Label)
+                backend_label.update(self.backend_type.value.title())
+            except Exception:
+                pass
         elif event.select.id == "storage-select" and event.value is not Select.BLANK:
             self.storage_type = event.value
             # Reinitialize dialer with new storage type
