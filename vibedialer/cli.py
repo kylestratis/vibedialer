@@ -72,7 +72,10 @@ def main(
 
     # No subcommand - run TUI by default, or CLI if --cli flag is set
     if cli:
-        typer.echo("CLI mode requires a phone number. Use 'vibedialer dial --help' for options.")
+        typer.echo(
+            "CLI mode requires a phone number. "
+            "Use 'vibedialer dial --help' for options."
+        )
         raise typer.Exit(1)
     else:
         # Launch default TUI

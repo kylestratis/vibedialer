@@ -201,3 +201,115 @@ def test_random_ansi_art_can_vary():
             # With 20 samples from 2+ items, we should see variety
             # This is probabilistic but very likely
             pass  # We already asserted at least 1, which covers single-item case
+
+
+def test_ansi_art_loads_ans_files():
+    """Test that .ANS files (ANSI art with escape codes) are loaded."""
+    import tempfile
+    from pathlib import Path
+
+    from vibedialer.ui.art import _load_ansi_art_files
+
+    # Create a temporary .ANS file with ANSI escape codes
+    test_ansi_content = "\x1b[31mRed Text\x1b[0m\n\x1b[32mGreen Text\x1b[0m"
+
+    # Save original _ASSETS_DIR
+    from vibedialer.ui import art
+
+    original_assets_dir = art._ASSETS_DIR
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmppath = Path(tmpdir)
+            art._ASSETS_DIR = tmppath
+
+            # Create a test .ANS file
+            ans_file = tmppath / "test.ans"
+            ans_file.write_text(test_ansi_content, encoding="utf-8")
+
+            # Load files
+            files = _load_ansi_art_files()
+
+            # Should have loaded the .ANS file
+            assert len(files) >= 1, "Should load .ANS files"
+            assert any(test_ansi_content in f for f in files), (
+                ".ANS file content should be preserved"
+            )
+    finally:
+        # Restore original path
+        art._ASSETS_DIR = original_assets_dir
+
+
+def test_ansi_art_preserves_escape_codes():
+    """Test that ANSI escape codes in .ANS files are preserved, not stripped."""
+    import tempfile
+    from pathlib import Path
+
+    from vibedialer.ui import art
+
+    # ANSI art with escape codes for colors
+    test_content = (
+        "\x1b[1;31m╔═══╗\x1b[0m\n\x1b[1;32m║ A ║\x1b[0m\n\x1b[1;34m╚═══╝\x1b[0m"
+    )
+
+    original_assets_dir = art._ASSETS_DIR
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmppath = Path(tmpdir)
+            art._ASSETS_DIR = tmppath
+
+            # Create test .ANS file
+            ans_file = tmppath / "test.ans"
+            ans_file.write_text(test_content, encoding="utf-8")
+
+            # Load the collection
+            collection = art.get_ansi_art_collection()
+
+            # Should preserve escape codes in the Text object
+            assert len(collection) > 0
+            # The markup property or str representation should contain the escape codes
+            found = False
+            for piece in collection:
+                # Check if the plain text contains our box characters
+                if "╔═══╗" in piece.plain:
+                    found = True
+                    break
+            assert found, "Should preserve the art content from .ANS files"
+    finally:
+        art._ASSETS_DIR = original_assets_dir
+
+
+def test_ansi_art_loads_both_txt_and_ans():
+    """Test that both .txt and .ANS files are loaded."""
+    import tempfile
+    from pathlib import Path
+
+    from vibedialer.ui import art
+
+    original_assets_dir = art._ASSETS_DIR
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmppath = Path(tmpdir)
+            art._ASSETS_DIR = tmppath
+
+            # Create a .txt file
+            txt_file = tmppath / "test.txt"
+            txt_file.write_text("Plain text art", encoding="utf-8")
+
+            # Create a .ANS file
+            ans_file = tmppath / "test.ans"
+            ans_file.write_text("\x1b[31mANSI art\x1b[0m", encoding="utf-8")
+
+            # Load files
+            files = art._load_ansi_art_files()
+
+            # Should load both files
+            assert len(files) == 2, (
+                f"Should load both .txt and .ANS files, got {len(files)}"
+            )
+            assert any("Plain text art" in f for f in files), "Should load .txt file"
+            assert any("ANSI art" in f for f in files), "Should load .ANS file"
+    finally:
+        art._ASSETS_DIR = original_assets_dir

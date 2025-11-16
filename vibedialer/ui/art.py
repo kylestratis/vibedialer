@@ -19,10 +19,12 @@ _ASSETS_DIR = Path(__file__).parent / "assets" / "ansi_art"
 
 def _load_ansi_art_files() -> list[str]:
     """
-    Load all ANSI art text files from the assets directory.
+    Load all ANSI art files from the assets directory.
+
+    Supports both .txt (plain text) and .ANS (ANSI art with escape codes) files.
 
     Returns:
-        List of art strings loaded from .txt files
+        List of art strings loaded from .txt and .ANS files
     """
     art_files = []
 
@@ -40,15 +42,16 @@ def _load_ansi_art_files() -> list[str]:
             """
         ]
 
-    # Load all .txt files from the directory
-    for art_file in sorted(_ASSETS_DIR.glob("*.txt")):
-        try:
-            content = art_file.read_text(encoding="utf-8")
-            if content.strip():  # Only add non-empty files
-                art_files.append(content)
-        except Exception:
-            # Skip files that can't be read
-            continue
+    # Load all .txt and .ANS files from the directory
+    for pattern in ["*.txt", "*.ans", "*.ANS"]:
+        for art_file in sorted(_ASSETS_DIR.glob(pattern)):
+            try:
+                content = art_file.read_text(encoding="utf-8")
+                if content.strip():  # Only add non-empty files
+                    art_files.append(content)
+            except Exception:
+                # Skip files that can't be read
+                continue
 
     # If no valid files found, return default art
     if not art_files:
@@ -70,8 +73,10 @@ def get_ansi_art_collection() -> list[Text]:
     """
     Get the collection of ANSI art pieces from the assets directory.
 
-    Loads all .txt files from assets/ansi_art/ and returns them as
-    styled Rich Text objects.
+    Loads all .txt and .ANS files from assets/ansi_art/ and returns them as
+    styled Rich Text objects. .ANS files with ANSI escape codes are rendered
+    with their original formatting preserved, while .txt files are styled
+    with vaporwave colors.
 
     Returns:
         List of Rich Text objects containing ANSI art
@@ -79,11 +84,20 @@ def get_ansi_art_collection() -> list[Text]:
     # Load art from files
     art_texts = _load_ansi_art_files()
 
-    # Convert to Rich Text objects with vaporwave styling
+    # Convert to Rich Text objects
     collection = []
     for art_text in art_texts:
-        art = Text()
-        art.append(art_text.strip(), style=VAPORWAVE_CYAN)
+        # Check if this art contains ANSI escape codes
+        has_ansi_codes = "\x1b[" in art_text or "\033[" in art_text
+
+        if has_ansi_codes:
+            # For .ANS files with ANSI codes, use from_ansi to preserve formatting
+            art = Text.from_ansi(art_text.strip())
+        else:
+            # For plain .txt files, apply vaporwave styling
+            art = Text()
+            art.append(art_text.strip(), style=VAPORWAVE_CYAN)
+
         collection.append(art)
 
     return collection

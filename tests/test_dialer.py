@@ -49,6 +49,68 @@ def test_dial_result_creation():
     assert result.success is True
 
 
+def test_count_numbers_from_partial():
+    """Test counting phone numbers without generating them."""
+    dialer = PhoneDialer()
+    # For "555-234-56", should count 100 numbers (555-234-5600 through 555-234-5699)
+    count = dialer.count_numbers("555-234-56")
+    assert count == 100
+
+
+def test_count_numbers_from_full():
+    """Test that counting a full number returns 1."""
+    dialer = PhoneDialer()
+    # Full 10-digit USA number
+    count = dialer.count_numbers("555-234-5678")
+    assert count == 1
+
+
+def test_count_numbers_area_code_only():
+    """Test counting numbers with just area code (3 digits)."""
+    dialer = PhoneDialer()
+    # For "555", should count all valid numbers in that area code
+    # Exchange first digit must be 2-9 (8 choices), then 6 more digits (10^6)
+    count = dialer.count_numbers("555")
+    # Should be 8 * 10^6 = 8,000,000
+    assert count == 8_000_000
+
+
+def test_count_numbers_with_exchange_start():
+    """Test counting with partial exchange."""
+    dialer = PhoneDialer()
+    # For "555-2", should count all numbers starting with area code 555
+    # and exchange starting with 2. Need 6 more digits: 10^6 = 1,000,000
+    count = dialer.count_numbers("555-2")
+    assert count == 1_000_000
+
+
+def test_count_numbers_matches_generate():
+    """Test that count_numbers matches the length of generate_numbers."""
+    dialer = PhoneDialer()
+    patterns = ["555-234-56", "555-234-5678", "555-234"]
+
+    for pattern in patterns:
+        count = dialer.count_numbers(pattern)
+        numbers = dialer.generate_numbers(pattern)
+        assert count == len(numbers), f"Count mismatch for pattern {pattern}"
+
+
+def test_count_numbers_performance():
+    """Test that count_numbers is fast even for large ranges."""
+    import time
+
+    dialer = PhoneDialer()
+
+    # Counting should be instant even for large ranges
+    start = time.time()
+    count = dialer.count_numbers("555")
+    elapsed = time.time() - start
+
+    # Should complete in less than 0.1 seconds (very generous)
+    assert elapsed < 0.1, f"Counting took too long: {elapsed} seconds"
+    assert count == 8_000_000
+
+
 def test_generate_numbers_sequential_order():
     """Test that sequential mode generates numbers in order."""
     dialer = PhoneDialer()
