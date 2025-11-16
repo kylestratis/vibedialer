@@ -72,7 +72,7 @@ class WelcomeScreen(Screen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press to continue to main menu."""
         if event.button.id == "continue-btn":
-            self.app.push_screen("menu")
+            self.app.switch_screen("menu")
 
 
 class InteractiveDialpad(Static):
@@ -189,13 +189,86 @@ class MainMenuScreen(Screen):
         height: auto;
         margin-top: 1;
     }
+
+    #config-header {
+        text-style: bold;
+        color: $accent;
+    }
+
+    #backend-section {
+        height: auto;
+        margin-top: 1;
+    }
+
+    #storage-section {
+        height: auto;
+        margin-top: 1;
+    }
+
+    #country-code-section {
+        height: auto;
+        margin-top: 1;
+    }
+
+    #tui-limit-section {
+        height: auto;
+        margin-top: 1;
+    }
+
+    #output-file-section {
+        height: auto;
+        margin-top: 1;
+    }
+
+    #mode-section {
+        height: auto;
+        margin-top: 1;
+    }
+
+    Select {
+        width: 30;
+    }
+
+    #output-file-input {
+        width: 40;
+    }
+
+    #tui-limit-input {
+        width: 15;
+    }
+
+    #country-code-input {
+        width: 10;
+    }
+
+    Switch {
+        margin: 1 0;
+    }
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        backend_type: BackendType = BackendType.SIMULATION,
+        storage_type: StorageType = StorageType.CSV,
+        storage_kwargs: dict | None = None,
+        country_code: CountryCode | str = CountryCode.USA,
+        tui_limit: int | None = None,
+        randomize: bool = False,
+        *args,
+        **kwargs,
+    ):
         """Initialize the main menu screen."""
         super().__init__(*args, **kwargs)
         self.phone_pattern = ""
-        self.validator = get_validator(CountryCode.USA)
+        self.backend_type = backend_type
+        self.storage_type = storage_type
+        self.storage_kwargs = storage_kwargs or {}
+        self.country_code = country_code
+        self.tui_limit = tui_limit
+        self.randomize = randomize
+        self.validator = get_validator(
+            country_code if isinstance(country_code, CountryCode) else CountryCode.USA
+        )
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the main menu."""
@@ -240,6 +313,65 @@ class MainMenuScreen(Screen):
                 with Center(id="dialpad-section"):
                     yield InteractiveDialpad()
 
+                # Configuration section
+                yield Label("")
+                yield Label("⚙️ Configuration:", id="config-header")
+                with Horizontal(id="backend-section"):
+                    yield Label("Backend:")
+                    yield Select(
+                        options=[
+                            ("Simulation", BackendType.SIMULATION),
+                            ("Modem", BackendType.MODEM),
+                            ("VoIP", BackendType.VOIP),
+                            ("IP Relay", BackendType.IP_RELAY),
+                        ],
+                        value=self.backend_type,
+                        id="backend-select",
+                        allow_blank=False,
+                    )
+                with Horizontal(id="storage-section"):
+                    yield Label("Storage:")
+                    yield Select(
+                        options=[
+                            ("CSV", StorageType.CSV),
+                            ("SQLite", StorageType.SQLITE),
+                            ("Dry Run", StorageType.DRY_RUN),
+                        ],
+                        value=self.storage_type,
+                        id="storage-select",
+                        allow_blank=False,
+                    )
+                with Horizontal(id="output-file-section"):
+                    yield Label("Output File:")
+                    yield Input(
+                        placeholder="Leave empty for auto-generated filename",
+                        id="output-file-input",
+                        value=self.storage_kwargs.get(
+                            "filename", self.storage_kwargs.get("database", "")
+                        ),
+                    )
+                with Horizontal(id="country-code-section"):
+                    yield Label("Country Code:")
+                    yield Input(
+                        placeholder="1",
+                        id="country-code-input",
+                        value=str(
+                            self.country_code.value
+                            if isinstance(self.country_code, CountryCode)
+                            else self.country_code
+                        ),
+                    )
+                with Horizontal(id="tui-limit-section"):
+                    yield Label("TUI Limit (0=unlimited):")
+                    yield Input(
+                        placeholder="0",
+                        id="tui-limit-input",
+                        value=str(self.tui_limit) if self.tui_limit else "0",
+                    )
+                with Horizontal(id="mode-section"):
+                    yield Label("Random Mode:")
+                    yield Switch(id="random-mode-switch", value=self.randomize)
+
                 # Control buttons
                 with Horizontal(classes="button-row"):
                     yield Button("Clear", id="clear-btn", variant="warning")
@@ -265,6 +397,41 @@ class MainMenuScreen(Screen):
         if event.input.id == "pattern-input":
             self.phone_pattern = event.value
             self._update_pattern_display()
+        elif event.input.id == "output-file-input":
+            output_file = event.value.strip()
+            if output_file:
+                if self.storage_type == StorageType.CSV:
+                    self.storage_kwargs["filename"] = output_file
+                elif self.storage_type == StorageType.SQLITE:
+                    self.storage_kwargs["database"] = output_file
+        elif event.input.id == "country-code-input":
+            try:
+                code = event.value.strip()
+                if code:
+                    # Try to find matching CountryCode enum
+                    for cc in CountryCode:
+                        if cc.value == code:
+                            self.country_code = cc
+                            self.validator = get_validator(cc)
+                            break
+                    else:
+                        # If no match, use the string value
+                        self.country_code = code
+            except Exception:
+                pass
+        elif event.input.id == "tui-limit-input":
+            try:
+                limit = int(event.value.strip()) if event.value.strip() else 0
+                self.tui_limit = limit if limit > 0 else None
+            except ValueError:
+                pass
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        """Handle backend and storage selection changes."""
+        if event.select.id == "backend-select" and event.value is not Select.BLANK:
+            self.backend_type = event.value
+        elif event.select.id == "storage-select" and event.value is not Select.BLANK:
+            self.storage_type = event.value
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle Enter key press to start dialing."""
@@ -577,6 +744,7 @@ class DialingScreen(Screen):
         tui_limit: int | None = None,
         phone_number: str = "",
         randomize: bool = False,
+        auto_start: bool = True,
         *args,
         **kwargs,
     ):
@@ -584,6 +752,7 @@ class DialingScreen(Screen):
         super().__init__(*args, **kwargs)
         self.phone_number = phone_number
         self.randomize = randomize
+        self.auto_start = auto_start
         self.backend_type = backend_type
         self.backend_kwargs = backend_kwargs or {}
         self.storage_type = storage_type
@@ -628,69 +797,14 @@ class DialingScreen(Screen):
                     yield Label("Idle", id="current-status", classes="status-value")
 
             with Vertical(id="input-section"):
-                yield Label("Enter phone number or partial number:")
+                yield Label("Dialing Pattern:")
                 yield Input(
                     placeholder="e.g., 555-12 or 555-1234",
                     id="phone-input",
                     value=self.phone_number,
+                    disabled=True,
                 )
-                with Horizontal(id="backend-section"):
-                    yield Label("Backend:")
-                    yield Select(
-                        options=[
-                            ("Simulation", BackendType.SIMULATION),
-                            ("Modem", BackendType.MODEM),
-                            ("VoIP", BackendType.VOIP),
-                            ("IP Relay", BackendType.IP_RELAY),
-                        ],
-                        value=self.backend_type,
-                        id="backend-select",
-                        allow_blank=False,
-                    )
-                with Horizontal(id="storage-section"):
-                    yield Label("Storage:")
-                    yield Select(
-                        options=[
-                            ("CSV", StorageType.CSV),
-                            ("SQLite", StorageType.SQLITE),
-                            ("Dry Run", StorageType.DRY_RUN),
-                        ],
-                        value=self.storage_type,
-                        id="storage-select",
-                        allow_blank=False,
-                    )
-                with Horizontal(id="output-file-section"):
-                    yield Label("Output File:")
-                    yield Input(
-                        placeholder="Leave empty for auto-generated filename",
-                        id="output-file-input",
-                        value=self.storage_kwargs.get(
-                            "filename", self.storage_kwargs.get("database", "")
-                        ),
-                    )
-                with Horizontal(id="country-code-section"):
-                    yield Label("Country Code:")
-                    yield Input(
-                        placeholder="1",
-                        id="country-code-input",
-                        value=str(
-                            self.country_code.value
-                            if isinstance(self.country_code, CountryCode)
-                            else self.country_code
-                        ),
-                    )
-                with Horizontal(id="tui-limit-section"):
-                    yield Label("TUI Limit (0=unlimited):")
-                    yield Input(
-                        placeholder="0",
-                        id="tui-limit-input",
-                        value=str(self.tui_limit) if self.tui_limit else "0",
-                    )
-                with Horizontal(id="mode-section"):
-                    yield Label("Random Mode:")
-                    yield Switch(id="random-mode-switch", value=self.randomize)
                 with Horizontal(id="controls"):
-                    yield Button("Start Dialing", id="start-btn", variant="primary")
                     yield Button("Pause", id="pause-btn", variant="warning")
                     yield Button("Hang Up", id="stop-btn", variant="error")
                     yield Button("Clear Results", id="clear-btn")
@@ -703,10 +817,14 @@ class DialingScreen(Screen):
         yield Footer()
 
     def on_mount(self) -> None:
-        """Set up the screen when it mounts."""
+        """Set up the screen when it mounts and start dialing immediately."""
         table = self.query_one("#results-table", DataTable)
         table.add_columns("Phone Number", "Status", "Timestamp")
         table.cursor_type = "row"
+
+        # Start dialing immediately if auto_start is enabled
+        if self.auto_start:
+            self.run_worker(self.start_dialing())
 
     def on_unmount(self) -> None:
         """Clean up when the screen unmounts."""
@@ -715,13 +833,11 @@ class DialingScreen(Screen):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press events."""
-        if event.button.id == "start-btn":
+        if event.button.id == "pause-btn":
             if self.is_paused:
                 self.resume_dialing()
             else:
-                self.run_worker(self.start_dialing())
-        elif event.button.id == "pause-btn":
-            self.pause_dialing()
+                self.pause_dialing()
         elif event.button.id == "stop-btn":
             self.stop_dialing()
         elif event.button.id == "clear-btn":
@@ -729,64 +845,6 @@ class DialingScreen(Screen):
         elif event.button.id == "menu-btn":
             # Go back to main menu
             self.app.pop_screen()
-
-    def on_select_changed(self, event: Select.Changed) -> None:
-        """Handle backend and storage selection changes."""
-        if event.select.id == "backend-select" and event.value is not Select.BLANK:
-            self.dialer.cleanup()
-            self.backend_type = event.value
-            self.dialer = PhoneDialer(
-                backend_type=self.backend_type,
-                storage_type=self.storage_type,
-                country_code=self.country_code,
-                **{**self.backend_kwargs, **self.storage_kwargs},
-            )
-            # Update the backend display in status section
-            try:
-                backend_label = self.query_one("#current-backend", Label)
-                backend_label.update(self.backend_type.value.title())
-            except Exception:
-                pass
-        elif event.select.id == "storage-select" and event.value is not Select.BLANK:
-            self.storage_type = event.value
-            # Reinitialize dialer with new storage type
-            self.dialer.cleanup()
-            self.dialer = PhoneDialer(
-                backend_type=self.backend_type,
-                storage_type=self.storage_type,
-                country_code=self.country_code,
-                **{**self.backend_kwargs, **self.storage_kwargs},
-            )
-
-    def on_input_changed(self, event: Input.Changed) -> None:
-        """Handle input field changes for settings."""
-        if event.input.id == "output-file-input":
-            output_file = event.value.strip()
-            if output_file:
-                if self.storage_type == StorageType.CSV:
-                    self.storage_kwargs["filename"] = output_file
-                elif self.storage_type == StorageType.SQLITE:
-                    self.storage_kwargs["database"] = output_file
-        elif event.input.id == "country-code-input":
-            try:
-                code = event.value.strip()
-                if code:
-                    # Try to find matching CountryCode enum
-                    for cc in CountryCode:
-                        if cc.value == code:
-                            self.country_code = cc
-                            break
-                    else:
-                        # If no match, use the string value
-                        self.country_code = code
-            except Exception:
-                pass
-        elif event.input.id == "tui-limit-input":
-            try:
-                limit = int(event.value.strip()) if event.value.strip() else 0
-                self.tui_limit = limit if limit > 0 else None
-            except ValueError:
-                pass
 
     async def animate_keypad_for_number(self, phone_number: str) -> None:
         """Animate the keypad by highlighting each digit."""
@@ -800,8 +858,7 @@ class DialingScreen(Screen):
 
     async def start_dialing(self) -> None:
         """Start the dialing sequence."""
-        phone_input = self.query_one("#phone-input", Input)
-        phone_number = phone_input.value.strip()
+        phone_number = self.phone_number
 
         if not phone_number and not self.resume_numbers:
             return
@@ -809,13 +866,13 @@ class DialingScreen(Screen):
         self.is_dialing = True
         self.is_paused = False
 
-        start_btn = self.query_one("#start-btn", Button)
-        pause_btn = self.query_one("#pause-btn", Button)
-        start_btn.disabled = True
-        pause_btn.disabled = False
+        try:
+            pause_btn = self.query_one("#pause-btn", Button)
+            pause_btn.disabled = False
+        except Exception:
+            pass
 
-        random_switch = self.query_one("#random-mode-switch", Switch)
-        randomize = random_switch.value
+        randomize = self.randomize
 
         if self.resume_numbers:
             numbers = self.resume_numbers
@@ -882,9 +939,12 @@ class DialingScreen(Screen):
 
         self.is_dialing = False
         self.is_paused = False
-        start_btn.disabled = False
-        pause_btn.disabled = True
-        pause_btn.label = "Pause"
+        try:
+            pause_btn = self.query_one("#pause-btn", Button)
+            pause_btn.disabled = True
+            pause_btn.label = "Pause"
+        except Exception:
+            pass
 
     def _format_status_display(self, status: str) -> str:
         """Format status for display."""
@@ -970,9 +1030,7 @@ class DialingScreen(Screen):
                 "status-error",
                 "status-no_answer",
             )
-            start_btn = self.query_one("#start-btn", Button)
             pause_btn = self.query_one("#pause-btn", Button)
-            start_btn.disabled = False
             pause_btn.disabled = True
             pause_btn.label = "Pause"
             pause_btn.variant = "warning"
@@ -1008,8 +1066,6 @@ class VibeDialerApp(App):
     # Install screens
     SCREENS = {
         "welcome": WelcomeScreen,
-        "menu": MainMenuScreen,
-        "dialing": DialingScreen,
     }
 
     def __init__(
@@ -1045,25 +1101,42 @@ class VibeDialerApp(App):
         self.push_screen("welcome")
 
     def switch_screen(self, screen_name: str) -> None:
-        """Switch to a different screen, passing pattern from menu to dialing."""
-        if screen_name == "dialing":
-            # Get the pattern from the menu screen
+        """Switch to a different screen, passing configuration between screens."""
+        if screen_name == "menu":
+            # Create and push the main menu screen with current configuration
+            menu_screen = MainMenuScreen(
+                backend_type=self.backend_type,
+                storage_type=self.storage_type,
+                storage_kwargs=self.storage_kwargs,
+                country_code=self.country_code,
+                tui_limit=self.tui_limit,
+                randomize=self.randomize,
+            )
+            self.push_screen(menu_screen)
+        elif screen_name == "dialing":
+            # Get the pattern and configuration from the menu screen
             menu_screen = self.screen
             if isinstance(menu_screen, MainMenuScreen):
                 pattern = menu_screen.phone_pattern
+                # Get random mode from the switch
+                try:
+                    random_switch = menu_screen.query_one("#random-mode-switch", Switch)
+                    randomize = random_switch.value
+                except Exception:
+                    randomize = menu_screen.randomize
 
-                # Create and install the dialing screen with the pattern
+                # Create and install the dialing screen with the pattern and config
                 dialing_screen = DialingScreen(
-                    backend_type=self.backend_type,
+                    backend_type=menu_screen.backend_type,
                     backend_kwargs=self.backend_kwargs,
-                    storage_type=self.storage_type,
-                    storage_kwargs=self.storage_kwargs,
+                    storage_type=menu_screen.storage_type,
+                    storage_kwargs=menu_screen.storage_kwargs,
                     resume_numbers=self.resume_numbers,
-                    country_code=self.country_code,
+                    country_code=menu_screen.country_code,
                     session_id=self.session_id,
-                    tui_limit=self.tui_limit,
+                    tui_limit=menu_screen.tui_limit,
                     phone_number=pattern,
-                    randomize=self.randomize,
+                    randomize=randomize,
                 )
                 # Push the dialing screen
                 self.push_screen(dialing_screen)
