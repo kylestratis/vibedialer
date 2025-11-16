@@ -256,22 +256,6 @@ async def test_main_menu_has_validation_feedback():
 
 
 @pytest.mark.asyncio
-async def test_main_menu_displays_keypad_art():
-    """Test that the main menu screen displays keypad ANSI art."""
-    from vibedialer.ui.tui import MainMenuScreen
-
-    app = VibeDialerApp()
-    async with app.run_test():
-        # Create and push menu screen directly
-        menu_screen = MainMenuScreen()
-        await app.push_screen(menu_screen)
-
-        # Should have keypad art displayed
-        keypad_art = app.screen.query_one("#keypad-art")
-        assert keypad_art is not None
-
-
-@pytest.mark.asyncio
 async def test_main_menu_pattern_input_exists():
     """Test that the main menu has a pattern input field."""
     from vibedialer.ui.tui import MainMenuScreen

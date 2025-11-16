@@ -4,7 +4,6 @@ import asyncio
 
 from textual.app import App, ComposeResult
 from textual.containers import (
-    Center,
     Container,
     Grid,
     Horizontal,
@@ -326,47 +325,21 @@ class MainMenuScreen(Screen):
             with Vertical(id="menu-content"):
                 # Instructions section
                 with Vertical(id="instructions"):
-                    yield Label("Welcome to VibeDialer!", id="title")
-                    yield Label("")
-                    yield Label("📋 Pattern Requirements (10-Digit Dialing):")
-                    yield Label("  • Full format: NXX-NXX-XXXX (N=2-9, X=0-9)")
-                    yield Label("  • Enter partial patterns to dial ranges")
-                    yield Label("  • Minimum: 3 digits (area code)")
-                    yield Label("  • Area code must start with 2-9 (not 0 or 1)")
-                    yield Label("  • Exchange (if included) must start with 2-9")
-                    yield Label("")
-                    yield Label("📞 Examples:")
-                    yield Label("  • '555' → dials 555-200-0000 through 555-999-9999")
+                    yield Label("📋 Pattern Entry (10-Digit Format: NXX-NXX-XXXX)")
                     yield Label(
-                        "  • '555-234' → dials 555-234-0000 through 555-234-9999"
+                        "Enter partial patterns: '555' → full area code | "
+                        "'555-234' → exchange | '555-234-5678' → specific number"
                     )
-                    yield Label(
-                        "  • '555-234-56' → dials 555-234-5600 through 555-234-5699"
-                    )
-                    yield Label(
-                        "  • '555-234-5678' → dials only 555-234-5678 (specific number)"
-                    )
-                    yield Label("")
-                    yield Label("💡 Input Methods:")
-                    yield Label("  • Type directly in the text field below")
-                    yield Label("  • Use the interactive dialpad buttons")
-                    yield Label("  • Press 'Continue to Dialing' when ready")
 
                 # Input section
                 with Vertical(id="input-area"):
                     yield Label("Current Pattern:", id="pattern-label")
                     yield Label("(empty)", id="pattern-display")
                     yield Label("", id="validation-feedback", classes="validation-info")
-                    yield Label("")
-                    yield Label("Text Input:")
                     yield Input(
                         placeholder="e.g., 555, 555-234, or 555-234-5678",
                         id="pattern-input",
                     )
-
-                    # Interactive dialpad
-                    with Center(id="dialpad-section"):
-                        yield InteractiveDialpad()
 
                 # Current Status section
                 with Vertical(id="status-area"):
@@ -459,10 +432,6 @@ class MainMenuScreen(Screen):
                             id="start-dial-btn",
                             variant="success",
                         )
-
-                    # Display telephone keypad
-                    with Center(id="keypad-display-menu"):
-                        yield Static(get_telephone_keypad(), id="keypad-art")
 
         yield Footer()
 
@@ -868,11 +837,7 @@ class DialingScreen(Screen):
         """Create child widgets for the dialing screen."""
         yield Header()
         with VerticalScroll(id="main-container"):
-            # Display telephone keypad at the top
-            with Vertical(id="keypad-section"):
-                yield Static(get_telephone_keypad(), id="keypad-display")
-
-            # Status display section
+            # Status display section - at the top for visibility
             with Vertical(id="status-section"):
                 yield Label("📊 Current Status:", id="status-header")
                 with Grid(classes="status-grid"):
@@ -894,6 +859,10 @@ class DialingScreen(Screen):
                     )
                     yield Label("Status:", classes="status-label")
                     yield Label("Ready", id="current-status", classes="status-value")
+
+            # Display telephone keypad (animated during dialing)
+            with Vertical(id="keypad-section"):
+                yield Static(get_telephone_keypad(), id="keypad-display")
 
             with Vertical(id="input-section"):
                 yield Label("Dialing Pattern:")
