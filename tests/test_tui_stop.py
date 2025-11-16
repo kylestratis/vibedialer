@@ -6,7 +6,7 @@ import pytest
 from textual.widgets import Button
 
 from vibedialer.backends import BackendType
-from vibedialer.tui import VibeDialerApp
+from vibedialer.tui import DialingScreen, VibeDialerApp
 
 
 class TestTUIStopDialing:
@@ -17,48 +17,76 @@ class TestTUIStopDialing:
         """Test that stop_dialing sets the is_dialing flag to False."""
         app = VibeDialerApp(backend_type=BackendType.SIMULATION)
         async with app.run_test():
-            app.is_dialing = True
-            app.stop_dialing()
-            assert app.is_dialing is False
+            # Navigate to dialing screen
+            await app.push_screen("menu")
+            await app.push_screen("dialing")
+
+            dialing_screen = app.screen
+            assert isinstance(dialing_screen, DialingScreen)
+
+            dialing_screen.is_dialing = True
+            dialing_screen.stop_dialing()
+            assert dialing_screen.is_dialing is False
 
     @pytest.mark.asyncio
     async def test_stop_dialing_hangs_up_current_call(self):
         """Test that stop_dialing hangs up any active call."""
         app = VibeDialerApp(backend_type=BackendType.SIMULATION)
         async with app.run_test():
-            # Mock the backend hangup method
-            app.dialer.backend.hangup = Mock()
+            # Navigate to dialing screen
+            await app.push_screen("menu")
+            await app.push_screen("dialing")
 
-            app.is_dialing = True
-            app.stop_dialing()
+            dialing_screen = app.screen
+            assert isinstance(dialing_screen, DialingScreen)
+
+            # Mock the backend hangup method
+            dialing_screen.dialer.backend.hangup = Mock()
+
+            dialing_screen.is_dialing = True
+            dialing_screen.stop_dialing()
 
             # Verify hangup was called
-            app.dialer.backend.hangup.assert_called_once()
+            dialing_screen.dialer.backend.hangup.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_stop_dialing_flushes_storage(self):
         """Test that stop_dialing flushes storage to save results."""
         app = VibeDialerApp(backend_type=BackendType.SIMULATION)
         async with app.run_test():
-            # Mock the storage flush method
-            app.dialer.storage.flush = Mock()
+            # Navigate to dialing screen
+            await app.push_screen("menu")
+            await app.push_screen("dialing")
 
-            app.is_dialing = True
-            app.stop_dialing()
+            dialing_screen = app.screen
+            assert isinstance(dialing_screen, DialingScreen)
+
+            # Mock the storage flush method
+            dialing_screen.dialer.storage.flush = Mock()
+
+            dialing_screen.is_dialing = True
+            dialing_screen.stop_dialing()
 
             # Verify flush was called
-            app.dialer.storage.flush.assert_called_once()
+            dialing_screen.dialer.storage.flush.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_stop_dialing_updates_ui_status(self):
         """Test that stop_dialing updates the UI status label."""
         app = VibeDialerApp(backend_type=BackendType.SIMULATION)
         async with app.run_test():
-            app.is_dialing = True
-            app.stop_dialing()
+            # Navigate to dialing screen
+            await app.push_screen("menu")
+            await app.push_screen("dialing")
+
+            dialing_screen = app.screen
+            assert isinstance(dialing_screen, DialingScreen)
+
+            dialing_screen.is_dialing = True
+            dialing_screen.stop_dialing()
 
             # Check that status was updated
-            status_label = app.query_one("#current-status")
+            status_label = dialing_screen.query_one("#current-status")
             label_text = str(status_label.render())
             assert "Stopped" in label_text or "stopped" in label_text.lower()
 
@@ -81,11 +109,18 @@ class TestTUIStopDialing:
             },
         )
         async with app.run_test():
-            # Replace the backend with our mock
-            app.dialer.backend = mock_backend_instance
+            # Navigate to dialing screen
+            await app.push_screen("menu")
+            await app.push_screen("dialing")
 
-            app.is_dialing = True
-            app.stop_dialing()
+            dialing_screen = app.screen
+            assert isinstance(dialing_screen, DialingScreen)
+
+            # Replace the backend with our mock
+            dialing_screen.dialer.backend = mock_backend_instance
+
+            dialing_screen.is_dialing = True
+            dialing_screen.stop_dialing()
 
             # Verify wait for analyses was called
             mock_backend_instance._wait_for_pending_analyses.assert_called()
@@ -96,25 +131,32 @@ class TestTUIStopDialing:
         app = VibeDialerApp(backend_type=BackendType.SIMULATION)
 
         async with app.run_test():
+            # Navigate to dialing screen
+            await app.push_screen("menu")
+            await app.push_screen("dialing")
+
+            dialing_screen = app.screen
+            assert isinstance(dialing_screen, DialingScreen)
+
             # Start with a valid phone pattern (exchange must start with 2-9)
-            phone_input = app.query_one("#phone-input")
+            phone_input = dialing_screen.query_one("#phone-input")
             phone_input.value = "555-234"  # Valid pattern: exchange starts with 2
 
             # Mock dial to count calls
-            original_dial = app.dialer.dial
+            original_dial = dialing_screen.dialer.dial
             call_count = []
 
             def mock_dial(number):
                 call_count.append(number)
                 # Stop after first call
                 if len(call_count) == 1:
-                    app.is_dialing = False
+                    dialing_screen.is_dialing = False
                 return original_dial(number)
 
-            app.dialer.dial = mock_dial
+            dialing_screen.dialer.dial = mock_dial
 
             # Start dialing (would normally dial 10 numbers)
-            await app.start_dialing()
+            await dialing_screen.start_dialing()
 
             # Should have stopped after 1 call instead of 10
             assert len(call_count) == 1
@@ -125,22 +167,30 @@ class TestTUIStopDialing:
         app = VibeDialerApp(backend_type=BackendType.SIMULATION)
 
         async with app.run_test():
+            # Navigate to dialing screen
+            await app.push_screen("menu")
+            await app.push_screen("dialing")
+
+            dialing_screen = app.screen
+            assert isinstance(dialing_screen, DialingScreen)
+
             # Mock stop_dialing to track if it was called
-            original_stop = app.stop_dialing
+            original_stop = dialing_screen.stop_dialing
             stop_called = []
 
             def mock_stop():
                 stop_called.append(True)
                 original_stop()
 
-            app.stop_dialing = mock_stop
+            dialing_screen.stop_dialing = mock_stop
 
             # Simulate stop button press
-            stop_btn = app.query_one("#stop-btn", Button)
+            stop_btn = dialing_screen.query_one("#stop-btn", Button)
             stop_btn.press()
 
             # Give the event loop a moment to process the button press
             import asyncio
+
             await asyncio.sleep(0.05)
 
             # Verify stop_dialing was called
