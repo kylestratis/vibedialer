@@ -153,6 +153,7 @@ class VibeDialerApp(App):
         resume_numbers: list[str] | None = None,
         country_code: CountryCode | str = CountryCode.USA,
         session_id: str | None = None,
+        tui_limit: int | None = None,
         *args,
         **kwargs,
     ):
@@ -167,6 +168,7 @@ class VibeDialerApp(App):
         self.resume_numbers = resume_numbers
         self.country_code = country_code
         self.session_id = session_id
+        self.tui_limit = tui_limit  # Optional limit for testing/safety
         self.dialer = PhoneDialer(
             backend_type=backend_type,
             storage_type=storage_type,
@@ -178,6 +180,7 @@ class VibeDialerApp(App):
         )
         self.title = "VibeDialer"
         self.is_dialing = False  # Track if currently dialing
+        self.is_paused = False  # Track if dialing is paused
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -222,7 +225,8 @@ class VibeDialerApp(App):
                     yield Switch(id="random-mode-switch", value=self.randomize)
                 with Horizontal(id="controls"):
                     yield Button("Start Dialing", id="start-btn", variant="primary")
-                    yield Button("Stop", id="stop-btn", variant="error")
+                    yield Button("Pause", id="pause-btn", variant="warning")
+                    yield Button("Hang Up", id="stop-btn", variant="error")
                     yield Button("Clear Results", id="clear-btn")
 
             with Vertical(id="results-section"):
@@ -245,7 +249,13 @@ class VibeDialerApp(App):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press events."""
         if event.button.id == "start-btn":
-            self.run_worker(self.start_dialing())
+            # If paused, resume instead of starting new
+            if self.is_paused:
+                self.resume_dialing()
+            else:
+                self.run_worker(self.start_dialing())
+        elif event.button.id == "pause-btn":
+            self.pause_dialing()
         elif event.button.id == "stop-btn":
             self.stop_dialing()
         elif event.button.id == "clear-btn":
@@ -301,6 +311,13 @@ class VibeDialerApp(App):
 
         # Set dialing flag
         self.is_dialing = True
+        self.is_paused = False
+
+        # Update button states
+        start_btn = self.query_one("#start-btn", Button)
+        pause_btn = self.query_one("#pause-btn", Button)
+        start_btn.disabled = True
+        pause_btn.disabled = False
 
         # Get random mode setting from switch
         random_switch = self.query_one("#random-mode-switch", Switch)
@@ -315,19 +332,33 @@ class VibeDialerApp(App):
             # Generate numbers to dial
             numbers = self.dialer.generate_numbers(phone_number, randomize=randomize)
 
-        # For now, just show the first few as a demo
-        # In a real implementation, this would be async and incremental
+        # Apply tui_limit if configured
+        if self.tui_limit is not None and self.tui_limit > 0:
+            numbers = numbers[: self.tui_limit]
+
+        total_numbers = len(numbers)
         table = self.query_one("#results-table", DataTable)
         current_number_label = self.query_one("#current-number", Label)
         current_status_label = self.query_one("#current-status", Label)
 
-        for number in numbers[:10]:  # Limit to first 10 for demo
+        # Process all numbers with batch processing for UI responsiveness
+        batch_size = 5  # Process 5 numbers before yielding to UI
+        for i, number in enumerate(numbers, 1):
             # Check if stop was requested
             if not self.is_dialing:
                 break
 
-            # Update status display with current number being dialed
-            current_number_label.update(number)
+            # Check if pause was requested
+            while self.is_paused and self.is_dialing:
+                await asyncio.sleep(0.1)  # Wait while paused
+
+            # If stop was requested during pause, break
+            if not self.is_dialing:
+                break
+
+            # Update status display with current number being dialed and progress
+            progress = f"[{i}/{total_numbers}]"
+            current_number_label.update(f"{progress} {number}")
             current_status_label.update("Dialing...")
             current_status_label.remove_class(
                 "status-ringing",
@@ -359,6 +390,10 @@ class VibeDialerApp(App):
             # Brief pause between numbers to make it easier to follow
             await asyncio.sleep(0.3)
 
+            # Batch processing: yield to UI every batch_size numbers for responsiveness
+            if i % batch_size == 0:
+                await asyncio.sleep(0.05)  # Brief yield to keep UI responsive
+
         # Reset status display
         current_number_label.update("---")
         final_status = "Stopped" if not self.is_dialing else "Complete"
@@ -372,8 +407,14 @@ class VibeDialerApp(App):
             "status-no_answer",
         )
 
-        # Clear dialing flag
+        # Clear dialing and paused flags
         self.is_dialing = False
+        self.is_paused = False
+
+        # Update button states
+        start_btn.disabled = False
+        pause_btn.disabled = True
+        pause_btn.label = "Pause"
 
     def _format_status_display(self, status: str) -> str:
         """
@@ -395,6 +436,60 @@ class VibeDialerApp(App):
         }
         return status_map.get(status, status.title())
 
+    def pause_dialing(self) -> None:
+        """
+        Pause the current dialing sequence.
+
+        Allows resuming from the same point later.
+        """
+        if not self.is_dialing or self.is_paused:
+            return
+
+        self.is_paused = True
+
+        # Update UI status
+        try:
+            current_status_label = self.query_one("#current-status", Label)
+            current_status_label.update("Paused")
+            current_status_label.remove_class(
+                "status-ringing",
+                "status-busy",
+                "status-modem",
+                "status-person",
+                "status-error",
+                "status-no_answer",
+            )
+
+            # Update button labels
+            pause_btn = self.query_one("#pause-btn", Button)
+            pause_btn.label = "Resume"
+            pause_btn.variant = "success"
+        except Exception:
+            # UI might not be ready yet
+            pass
+
+    def resume_dialing(self) -> None:
+        """
+        Resume dialing after pause.
+        """
+        if not self.is_paused:
+            return
+
+        self.is_paused = False
+
+        # Update UI status
+        try:
+            current_status_label = self.query_one("#current-status", Label)
+            current_status_label.update("Resuming...")
+
+            # Update button labels
+            pause_btn = self.query_one("#pause-btn", Button)
+            pause_btn.label = "Pause"
+            pause_btn.variant = "warning"
+        except Exception:
+            # UI might not be ready yet
+            pass
+
     def stop_dialing(self) -> None:
         """
         Stop the current dialing sequence.
@@ -404,6 +499,7 @@ class VibeDialerApp(App):
         """
         # Set flag to stop the dialing loop
         self.is_dialing = False
+        self.is_paused = False  # Clear pause flag too
 
         # Hang up any current call
         if self.dialer.backend:
@@ -442,6 +538,14 @@ class VibeDialerApp(App):
                 "status-error",
                 "status-no_answer",
             )
+
+            # Reset button states
+            start_btn = self.query_one("#start-btn", Button)
+            pause_btn = self.query_one("#pause-btn", Button)
+            start_btn.disabled = False
+            pause_btn.disabled = True
+            pause_btn.label = "Pause"
+            pause_btn.variant = "warning"
         except Exception:
             # UI might not be ready yet
             pass
