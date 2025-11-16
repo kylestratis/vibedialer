@@ -27,6 +27,14 @@ class DialResult:
     phone_number: str = ""
     timestamp: str = ""
     session_id: str = ""  # Session identifier for grouping results
+    # AMD (Answering Machine Detection) fields
+    answered_by: str | None = None  # "human", "machine_start", "fax", "unknown", etc.
+    amd_duration: float | None = None  # Time AMD took to determine result (seconds)
+    # FFT audio analysis fields
+    fft_peak_frequency: float | None = None  # Primary detected frequency in Hz
+    fft_confidence: float | None = None  # Confidence in analysis (0.0-1.0)
+    recording_url: str | None = None  # URL to call recording if available
+    recording_duration: float | None = None  # Duration of recording in seconds
 
 
 class TelephonyBackend(ABC):
