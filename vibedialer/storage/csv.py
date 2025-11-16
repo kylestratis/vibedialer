@@ -28,6 +28,10 @@ class CSVStorage(ResultStorage):
     def _initialize_file(self) -> None:
         """Initialize the CSV file with headers if it doesn't exist."""
         file_path = Path(self.filename)
+
+        # Create parent directory if it doesn't exist
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
         file_exists = file_path.exists()
 
         # Open file in append mode

@@ -358,20 +358,93 @@ def test_create_storage_sqlite():
 
 
 def test_create_storage_default_filenames():
-    """Test that factory uses default filenames."""
+    """Test that factory uses default filenames in results directory."""
+    import shutil
+
     # CSV default
     storage_csv = create_storage(StorageType.CSV)
     assert isinstance(storage_csv, CSVStorage)
-    assert storage_csv.filename == "vibedialer_results.csv"
+    assert storage_csv.filename == "results/vibedialer_results.csv"
     storage_csv.close()
-    Path("vibedialer_results.csv").unlink(missing_ok=True)
+    # Clean up results directory
+    if Path("results").exists():
+        shutil.rmtree("results")
 
     # SQLite default
     storage_sqlite = create_storage(StorageType.SQLITE)
     assert isinstance(storage_sqlite, SQLiteStorage)
-    assert storage_sqlite.database == "vibedialer_results.db"
+    assert storage_sqlite.database == "results/vibedialer_results.db"
     storage_sqlite.close()
-    Path("vibedialer_results.db").unlink(missing_ok=True)
+    # Clean up results directory
+    if Path("results").exists():
+        shutil.rmtree("results")
+
+
+def test_csv_storage_creates_directory():
+    """Test that CSV storage creates parent directory automatically."""
+    import shutil
+    import tempfile
+
+    # Use a temporary directory as base
+    with tempfile.TemporaryDirectory() as tmpdir:
+        csv_file = Path(tmpdir) / "test_results" / "output.csv"
+
+        # Directory should not exist yet
+        assert not csv_file.parent.exists()
+
+        # Create storage - should create directory
+        storage = CSVStorage(filename=str(csv_file))
+
+        # Directory should now exist
+        assert csv_file.parent.exists()
+        assert csv_file.exists()
+
+        storage.close()
+
+
+def test_sqlite_storage_creates_directory():
+    """Test that SQLite storage creates parent directory automatically."""
+    import shutil
+    import tempfile
+
+    # Use a temporary directory as base
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_file = Path(tmpdir) / "test_results" / "output.db"
+
+        # Directory should not exist yet
+        assert not db_file.parent.exists()
+
+        # Create storage - should create directory
+        storage = SQLiteStorage(database=str(db_file))
+
+        # Directory should now exist
+        assert db_file.parent.exists()
+        assert db_file.exists()
+
+        storage.close()
+
+
+def test_default_storage_creates_results_directory():
+    """Test that default storage creation creates results directory."""
+    import shutil
+
+    # Clean up first
+    if Path("results").exists():
+        shutil.rmtree("results")
+
+    # Create CSV storage with defaults
+    storage = create_storage(StorageType.CSV)
+
+    # Results directory should be created
+    assert Path("results").exists()
+    assert Path("results").is_dir()
+    assert Path("results/vibedialer_results.csv").exists()
+
+    storage.close()
+
+    # Clean up
+    if Path("results").exists():
+        shutil.rmtree("results")
 
 
 # Session tracking tests

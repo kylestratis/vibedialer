@@ -28,6 +28,10 @@ class SQLiteStorage(ResultStorage):
     def _initialize_database(self) -> None:
         """Initialize the SQLite database and create tables if needed."""
         db_path = Path(self.database)
+
+        # Create parent directory if it doesn't exist
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+
         db_exists = db_path.exists()
 
         # Connect to database

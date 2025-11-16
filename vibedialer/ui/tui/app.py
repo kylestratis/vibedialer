@@ -308,9 +308,9 @@ class MainMenuScreen(Screen):
                     )
                     yield Label("")
                     yield Label("💡 Input Methods:")
-                    yield Label("  • Type directly in the text field below, OR")
-                    yield Label("  • Click the dialpad buttons to build your pattern")
-                    yield Label("  • Press Enter to start dialing")
+                    yield Label("  • Type directly in the text field below")
+                    yield Label("  • Use the interactive dialpad buttons below")
+                    yield Label("  • Press 'Continue to Dialing' button when ready")
 
                 # Input section
                 with Vertical(id="input-area"):
@@ -588,11 +588,11 @@ class DialingScreen(Screen):
     #main-container {
         width: 100%;
         height: 100%;
-        padding: 1;
     }
 
     #keypad-section {
         height: auto;
+        max-height: 15;
         padding: 0 1;
         margin-bottom: 1;
         align: center middle;
@@ -601,13 +601,15 @@ class DialingScreen(Screen):
     #input-section {
         height: auto;
         padding: 1;
+        margin: 0 1;
         border: solid $primary;
     }
 
     #results-section {
-        height: 1fr;
+        height: auto;
+        min-height: 20;
         padding: 1;
-        margin-top: 1;
+        margin: 1;
         border: solid $primary;
     }
 
@@ -791,7 +793,7 @@ class DialingScreen(Screen):
     def compose(self) -> ComposeResult:
         """Create child widgets for the dialing screen."""
         yield Header()
-        with Container(id="main-container"):
+        with VerticalScroll(id="main-container"):
             # Display telephone keypad at the top
             with Vertical(id="keypad-section"):
                 yield Static(get_telephone_keypad(), id="keypad-display")
