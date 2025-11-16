@@ -26,6 +26,7 @@ class DialResult:
     tone_type: str | None = None  # "modem", "fax", "voice", etc.
     phone_number: str = ""
     timestamp: str = ""
+    session_id: str = ""  # Session identifier for grouping results
 
 
 class TelephonyBackend(ABC):

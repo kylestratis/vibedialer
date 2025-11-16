@@ -9,6 +9,7 @@ import pytest
 
 from vibedialer.backends import DialResult
 from vibedialer.csv_storage import CSVStorage
+from vibedialer.session import create_session_metadata
 from vibedialer.sqlite_storage import SQLiteStorage
 from vibedialer.storage import DryRunStorage, StorageType, create_storage
 
@@ -24,6 +25,20 @@ def sample_result():
         tone_type="modem",
         phone_number="555-1234",
         timestamp="2025-11-15T12:00:00",
+        session_id="test1234",
+    )
+
+
+@pytest.fixture
+def sample_session():
+    """Create a sample SessionMetadata for testing."""
+    return create_session_metadata(
+        backend_type="simulation",
+        storage_type="sqlite",
+        phone_pattern="555-234-56",
+        country_code="1",
+        randomized=False,
+        session_id="test1234",
     )
 
 
@@ -37,6 +52,7 @@ def sample_results():
             message="Modem detected",
             phone_number="555-1234",
             timestamp="2025-11-15T12:00:00",
+            session_id="test1234",
         ),
         DialResult(
             success=False,
@@ -44,6 +60,7 @@ def sample_results():
             message="Busy signal",
             phone_number="555-1235",
             timestamp="2025-11-15T12:01:00",
+            session_id="test1234",
         ),
         DialResult(
             success=False,
@@ -51,6 +68,7 @@ def sample_results():
             message="No answer",
             phone_number="555-1236",
             timestamp="2025-11-15T12:02:00",
+            session_id="test1234",
         ),
     ]
 
@@ -350,3 +368,198 @@ def test_create_storage_default_filenames():
     assert storage_sqlite.database == "vibedialer_results.db"
     storage_sqlite.close()
     Path("vibedialer_results.db").unlink(missing_ok=True)
+
+
+# Session tracking tests
+
+
+def test_csv_storage_includes_session_id_column():
+    """Test that CSV storage includes session_id in header."""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as f:
+        csv_file = f.name
+
+    try:
+        storage = CSVStorage(filename=csv_file)
+        storage.close()
+
+        with open(csv_file) as f:
+            reader = csv.reader(f)
+            header = next(reader)
+            assert "session_id" in header
+            # session_id should be the first column
+            assert header[0] == "session_id"
+    finally:
+        Path(csv_file).unlink(missing_ok=True)
+
+
+def test_csv_storage_saves_session_id(sample_result):
+    """Test that CSV storage saves session_id with results."""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as f:
+        csv_file = f.name
+
+    try:
+        storage = CSVStorage(filename=csv_file)
+        storage.save_result(sample_result)
+        storage.close()
+
+        with open(csv_file) as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            assert len(rows) == 1
+            assert rows[0]["session_id"] == "test1234"
+            assert rows[0]["phone_number"] == "555-1234"
+    finally:
+        Path(csv_file).unlink(missing_ok=True)
+
+
+def test_sqlite_storage_creates_sessions_table():
+    """Test that SQLite storage creates sessions table."""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as f:
+        db_file = f.name
+
+    try:
+        storage = SQLiteStorage(database=db_file)
+        storage.close()
+
+        # Check sessions table exists
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'"
+        )
+        result = cursor.fetchone()
+        assert result is not None
+        conn.close()
+    finally:
+        Path(db_file).unlink(missing_ok=True)
+
+
+def test_sqlite_storage_session_id_column_and_index():
+    """Test that SQLite storage includes session_id column and index."""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as f:
+        db_file = f.name
+
+    try:
+        storage = SQLiteStorage(database=db_file)
+        storage.close()
+
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+
+        # Check session_id column exists in dial_results
+        cursor.execute("PRAGMA table_info(dial_results)")
+        columns = [row[1] for row in cursor.fetchall()]
+        assert "session_id" in columns
+
+        # Check session_id index exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='index'")
+        indexes = [row[0] for row in cursor.fetchall()]
+        assert "idx_session_id" in indexes
+
+        conn.close()
+    finally:
+        Path(db_file).unlink(missing_ok=True)
+
+
+def test_sqlite_storage_save_session(sample_session):
+    """Test saving session metadata to SQLite."""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as f:
+        db_file = f.name
+
+    try:
+        storage = SQLiteStorage(database=db_file)
+        storage.save_session(sample_session)
+        storage.close()
+
+        # Verify session was saved
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT session_id, backend_type, storage_type, phone_pattern FROM sessions"
+        )
+        row = cursor.fetchone()
+        assert row[0] == "test1234"
+        assert row[1] == "simulation"
+        assert row[2] == "sqlite"
+        assert row[3] == "555-234-56"
+        conn.close()
+    finally:
+        Path(db_file).unlink(missing_ok=True)
+
+
+def test_sqlite_storage_get_session(sample_session):
+    """Test retrieving session metadata from SQLite."""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as f:
+        db_file = f.name
+
+    try:
+        storage = SQLiteStorage(database=db_file)
+        storage.save_session(sample_session)
+
+        # Retrieve session
+        retrieved = storage.get_session("test1234")
+        assert retrieved is not None
+        assert retrieved.session_id == "test1234"
+        assert retrieved.backend_type == "simulation"
+        assert retrieved.storage_type == "sqlite"
+        assert retrieved.phone_pattern == "555-234-56"
+
+        storage.close()
+    finally:
+        Path(db_file).unlink(missing_ok=True)
+
+
+def test_sqlite_storage_get_latest_session_id():
+    """Test getting latest session ID from SQLite."""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as f:
+        db_file = f.name
+
+    try:
+        storage = SQLiteStorage(database=db_file)
+
+        # Save multiple sessions
+        session1 = create_session_metadata(
+            backend_type="simulation",
+            storage_type="sqlite",
+            phone_pattern="555-123",
+            session_id="session1",
+        )
+        session2 = create_session_metadata(
+            backend_type="voip",
+            storage_type="sqlite",
+            phone_pattern="555-456",
+            session_id="session2",
+        )
+
+        storage.save_session(session1)
+        storage.save_session(session2)
+
+        # Latest should be session2
+        latest = storage.get_latest_session_id()
+        assert latest == "session2"
+
+        storage.close()
+    finally:
+        Path(db_file).unlink(missing_ok=True)
+
+
+def test_sqlite_storage_dial_results_with_session_id(sample_result):
+    """Test that dial results are saved with session_id."""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as f:
+        db_file = f.name
+
+    try:
+        storage = SQLiteStorage(database=db_file)
+        storage.save_result(sample_result)
+        storage.close()
+
+        # Verify session_id was saved
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        cursor.execute("SELECT session_id, phone_number FROM dial_results")
+        row = cursor.fetchone()
+        assert row[0] == "test1234"
+        assert row[1] == "555-1234"
+        conn.close()
+    finally:
+        Path(db_file).unlink(missing_ok=True)

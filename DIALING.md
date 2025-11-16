@@ -9,6 +9,7 @@ This guide explains how to dial phone numbers and ranges using VibeDialer, inclu
 - [Phone Number Formats](#phone-number-formats)
 - [Range Dialing](#range-dialing)
 - [Country Code Support](#country-code-support)
+- [Session Tracking](#session-tracking)
 - [Validation Rules](#validation-rules)
 - [Examples](#examples)
 
@@ -261,6 +262,178 @@ vibedialer dial --country-code 49 3012345678
 | France        | 33   | Variable length                    |
 | Japan         | 81   | Variable length                    |
 | Australia     | 61   | Variable length                    |
+
+## Session Tracking
+
+VibeDialer tracks each war dialing session with a unique session ID, making it easy to analyze results and resume interrupted sessions.
+
+### What is a Session?
+
+A **session** represents a single war dialing operation. Each session has:
+- **Session ID**: A unique 8-character identifier (e.g., `a3f5c2d1`)
+- **Metadata**: Backend type, storage type, phone pattern, statistics
+- **Results**: All dial results grouped by session ID
+
+### Session IDs
+
+Session IDs are short, unique identifiers that group related dial results together:
+
+```bash
+# Auto-generated session ID
+vibedialer dial 555-234-56
+# Session ID: a3f5c2d1 (auto-generated)
+
+# Manually specify session ID
+vibedialer dial --session-id mysession1 555-234-56
+# Session ID: mysession1 (your choice)
+```
+
+#### Session ID Format
+
+- **Auto-generated**: 8 characters from UUID4 (e.g., `a3f5c2d1`)
+- **Manual**: Any string you provide (e.g., `office-scan-2025`)
+
+### Session Metadata
+
+VibeDialer tracks comprehensive metadata for each session:
+
+| Field              | Description                                    |
+|--------------------|------------------------------------------------|
+| session_id         | Unique identifier                              |
+| start_time         | When the session started (ISO 8601)            |
+| end_time           | When the session ended (ISO 8601)              |
+| backend_type       | Backend used (simulation, voip, modem)         |
+| storage_type       | Storage backend (csv, sqlite)                  |
+| phone_pattern      | Pattern being dialed (e.g., "555-234-56")      |
+| total_calls        | Total number of calls made                     |
+| successful_calls   | Number of successful calls                     |
+| modem_detections   | Number of modem carriers detected              |
+| country_code       | Country code used (e.g., "1" for USA)          |
+| randomized         | Whether numbers were dialed in random order    |
+
+**Note**: Session metadata is only saved when using SQLite storage. CSV storage only includes session_id in each result row.
+
+### Continuing Sessions
+
+By default, when resuming from a file, VibeDialer continues the previous session:
+
+```bash
+# Initial session
+vibedialer dial --storage sqlite --output calls.db 555-234-56
+# Session ID: a3f5c2d1 (auto-generated)
+
+# Resume later - continues same session
+vibedialer dial --resume calls.db --infer-prefix
+# Session ID: a3f5c2d1 (continued from previous session)
+```
+
+### Starting a New Session on Resume
+
+To force a new session when resuming:
+
+```bash
+# Force new session even when resuming
+vibedialer dial --resume calls.db --infer-prefix --new-session
+# Session ID: b7e9f4a2 (new session)
+```
+
+### Session CLI Flags
+
+| Flag                 | Description                                              | Default    |
+|----------------------|----------------------------------------------------------|------------|
+| `--session-id`       | Manually specify session ID                              | Auto-gen   |
+| `--continue-session` | Continue previous session when resuming                  | True       |
+| `--new-session`      | Force new session even when resuming                     | False      |
+
+### Session Data Storage
+
+#### CSV Storage
+
+CSV files include `session_id` as the first column:
+
+```csv
+session_id,phone_number,status,timestamp,success,message,carrier_detected,tone_type
+a3f5c2d1,555-234-5600,busy,2025-11-16T14:30:00,False,Busy signal,False,
+a3f5c2d1,555-234-5601,modem,2025-11-16T14:30:01,True,Modem detected,True,modem
+```
+
+You can filter results by session:
+
+```bash
+# Filter results for specific session
+grep "a3f5c2d1" results.csv
+```
+
+#### SQLite Storage
+
+SQLite databases store session metadata in a dedicated `sessions` table:
+
+```sql
+-- View all sessions
+SELECT * FROM sessions;
+
+-- View results for specific session
+SELECT * FROM dial_results WHERE session_id = 'a3f5c2d1';
+
+-- Session statistics
+SELECT
+    session_id,
+    phone_pattern,
+    total_calls,
+    successful_calls,
+    modem_detections
+FROM sessions;
+```
+
+### Analyzing Sessions
+
+#### Query Session Results (SQLite)
+
+```bash
+# Open SQLite database
+sqlite3 calls.db
+
+# List all sessions
+SELECT session_id, phone_pattern, total_calls, modem_detections
+FROM sessions
+ORDER BY start_time DESC;
+
+# Get all modem hits for a session
+SELECT phone_number, timestamp, message
+FROM dial_results
+WHERE session_id = 'a3f5c2d1' AND status = 'modem';
+
+# Compare sessions
+SELECT session_id, backend_type, total_calls,
+       (successful_calls * 100.0 / total_calls) as success_rate
+FROM sessions;
+```
+
+#### Session Report Example
+
+```bash
+# Session: a3f5c2d1
+# Pattern: 555-234-56 (100 numbers)
+# Backend: Twilio VoIP
+# Started: 2025-11-16T14:30:00
+# Ended:   2025-11-16T14:45:00
+#
+# Results:
+#   Total calls:       100
+#   Successful:         45 (45%)
+#   Modem detections:    5 (5%)
+#   Busy:               20 (20%)
+#   No answer:          30 (30%)
+#   Errors:              5 (5%)
+```
+
+### Best Practices
+
+1. **Use SQLite for Session Metadata**: CSV only stores session_id, not full metadata
+2. **Name Sessions Meaningfully**: Use `--session-id office-scan-2025-11-16` for clarity
+3. **Continue Sessions on Resume**: Default behavior maintains session continuity
+4. **Query Sessions Regularly**: Use SQLite queries to track progress
+5. **Group Related Scans**: Use same session ID for related scanning operations
 
 ## Validation Rules
 

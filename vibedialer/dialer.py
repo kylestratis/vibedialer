@@ -10,6 +10,10 @@ from vibedialer.backends import (
     TelephonyBackend,
     create_backend,
 )
+from vibedialer.session import (
+    create_session_metadata,
+    generate_session_id,
+)
 from vibedialer.storage import ResultStorage, StorageType, create_storage
 from vibedialer.validation import CountryCode, get_validator
 
@@ -26,6 +30,9 @@ class PhoneDialer:
         storage: ResultStorage | None = None,
         storage_type: StorageType = StorageType.CSV,
         country_code: CountryCode | str = CountryCode.USA,
+        session_id: str | None = None,
+        phone_pattern: str = "",
+        randomize: bool = False,
         **kwargs,
     ):
         """
@@ -37,6 +44,10 @@ class PhoneDialer:
             storage: Pre-configured storage instance (optional)
             storage_type: Type of storage to create if storage not provided
             country_code: Country code for phone number validation (default: USA)
+            session_id: Session ID for grouping dial results
+                (auto-generated if not provided)
+            phone_pattern: Phone number pattern being dialed (for session metadata)
+            randomize: Whether numbers are being dialed in random order
             **kwargs: Backend and storage specific configuration
         """
         # Separate backend and storage kwargs
@@ -78,6 +89,18 @@ class PhoneDialer:
 
         self.results: list[DialResult] = []
         self._backend_connected = False
+
+        # Initialize session tracking
+        self.session_id = session_id or generate_session_id()
+        self.session_metadata = create_session_metadata(
+            session_id=self.session_id,
+            backend_type=backend_type.value,
+            storage_type=storage_type.value,
+            phone_pattern=phone_pattern,
+            country_code=str(self.country_code.value),
+            randomized=randomize,
+        )
+        self._session_saved = False
 
     def generate_numbers(
         self, partial_number: str, randomize: bool = False
@@ -191,12 +214,35 @@ class PhoneDialer:
             self.backend.disconnect()
             self._backend_connected = False
 
+    def _save_session_metadata(self) -> None:
+        """Save or update session metadata to storage."""
+        # Check if storage supports session metadata
+        if hasattr(self.storage, "save_session"):
+            try:
+                self.storage.save_session(self.session_metadata)
+                self._session_saved = True
+                logger.debug(f"Saved session metadata for session {self.session_id}")
+            except Exception as e:
+                logger.warning(f"Failed to save session metadata: {e}")
+        else:
+            logger.debug(
+                f"Storage type {type(self.storage).__name__} "
+                "does not support session metadata"
+            )
+            self._session_saved = True  # Mark as saved to avoid repeated attempts
+
     def cleanup(self) -> None:
         """
         Clean up resources and save any pending data.
 
         This should be called when shutting down the dialer.
         """
+        # Update session end time
+        self.session_metadata.end_time = datetime.now().isoformat()
+
+        # Save final session metadata
+        self._save_session_metadata()
+
         # Flush and close storage
         if self.storage:
             self.storage.flush()
@@ -215,6 +261,10 @@ class PhoneDialer:
         Returns:
             DialResult with the outcome
         """
+        # Save session metadata on first dial
+        if not self._session_saved:
+            self._save_session_metadata()
+
         # Ensure backend is connected
         if not self._backend_connected:
             if not self.connect():
@@ -224,14 +274,23 @@ class PhoneDialer:
                     message="Failed to connect to backend",
                     phone_number=phone_number,
                     timestamp=datetime.now().isoformat(),
+                    session_id=self.session_id,
                 )
 
         # Use backend to dial
         result = self.backend.dial(phone_number)
 
-        # Add timestamp and phone number to result
+        # Add timestamp, phone number, and session ID to result
         result.phone_number = phone_number
         result.timestamp = datetime.now().isoformat()
+        result.session_id = self.session_id
+
+        # Update session statistics
+        self.session_metadata.total_calls += 1
+        if result.success:
+            self.session_metadata.successful_calls += 1
+        if result.status == "modem" or result.carrier_detected:
+            self.session_metadata.modem_detections += 1
 
         # Save result to storage
         self.storage.save_result(result)
