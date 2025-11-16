@@ -8,6 +8,7 @@ from rich.console import Console
 from vibedialer import __version__
 from vibedialer.art import display_keypad, display_welcome_screen
 from vibedialer.backends import BackendType
+from vibedialer.dialer import PhoneDialer
 from vibedialer.resume import prepare_resume
 from vibedialer.storage import StorageType
 from vibedialer.tui import VibeDialerApp
@@ -390,10 +391,96 @@ def dial(
             if hasattr(tui_app, "dialer") and tui_app.dialer:
                 tui_app.dialer.cleanup()
     else:
-        # Simple non-interactive mode (placeholder for now)
+        # Non-interactive mode - dial numbers and display results in console
         mode = "random" if random else "sequential"
         typer.echo(f"Dialing {phone_number} in {mode} order...")
-        typer.echo("Non-interactive mode not yet implemented.")
+        typer.echo()
+
+        # Create PhoneDialer with configured parameters
+        dialer = PhoneDialer(
+            backend_type=backend_type,
+            storage_type=storage_type,
+            country_code=country_code_val,
+            session_id=final_session_id,
+            phone_pattern=phone_number,
+            randomize=random,
+            **{**backend_kwargs, **storage_kwargs},
+        )
+
+        try:
+            # Generate or use resume numbers
+            if resume_numbers:
+                numbers = resume_numbers
+            else:
+                # Validate phone number provided
+                if not phone_number:
+                    typer.echo("Error: Phone number is required", err=True)
+                    raise typer.Exit(1)
+
+                numbers = dialer.generate_numbers(phone_number, randomize=random)
+
+            # Display session info
+            typer.echo(f"Session ID: {dialer.session_id}")
+            typer.echo(f"Backend: {backend_type.value}")
+            typer.echo(f"Storage: {storage_type.value}")
+            typer.echo(f"Numbers to dial: {len(numbers)}")
+            typer.echo()
+
+            # Track results for summary
+            results_summary = {
+                "total": len(numbers),
+                "modem": 0,
+                "person": 0,
+                "busy": 0,
+                "no_answer": 0,
+                "error": 0,
+            }
+
+            # Dial each number
+            for i, number in enumerate(numbers, 1):
+                typer.echo(f"[{i}/{len(numbers)}] Dialing {number}...", nl=False)
+
+                result = dialer.dial(number)
+
+                # Display result with appropriate formatting
+                status_emoji = {
+                    "modem": "💻",
+                    "person": "👤",
+                    "busy": "📵",
+                    "no_answer": "📭",
+                    "ringing": "🔔",
+                    "error": "❌",
+                }
+
+                emoji = status_emoji.get(result.status, "•")
+                typer.echo(f" {emoji} {result.status.upper()}: {result.message}")
+
+                # Update summary
+                if result.status in results_summary:
+                    results_summary[result.status] += 1
+
+            # Display summary
+            typer.echo()
+            typer.echo("=" * 60)
+            typer.echo("SUMMARY")
+            typer.echo("=" * 60)
+            typer.echo(f"Total numbers dialed: {results_summary['total']}")
+            typer.echo(f"  💻 Modems found: {results_summary['modem']}")
+            typer.echo(f"  👤 People answered: {results_summary['person']}")
+            typer.echo(f"  📵 Busy signals: {results_summary['busy']}")
+            typer.echo(f"  📭 No answer: {results_summary['no_answer']}")
+            typer.echo(f"  ❌ Errors: {results_summary['error']}")
+            typer.echo("=" * 60)
+            typer.echo(f"Results saved to storage ({storage_type.value})")
+            typer.echo()
+
+        except KeyboardInterrupt:
+            typer.echo()
+            typer.echo("Dialing interrupted by user.")
+        finally:
+            # Ensure cleanup happens
+            dialer.cleanup()
+            typer.echo("Cleanup complete.")
 
 
 @app.command()
