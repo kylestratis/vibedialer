@@ -203,7 +203,9 @@ class MainMenuScreen(Screen):
                 )
                 yield Label("  • Area code must start with 2-9 (not 0 or 1)")
                 yield Label("  • Exchange (if included) must start with 2-9")
-                yield Label("  • Example: '555' will dial all numbers in the 555 area code")
+                yield Label(
+                    "  • Example: '555' will dial all numbers in the 555 area code"
+                )
                 yield Label("  • Example: '555-12' will dial 555-1200 through 555-1299")
                 yield Label(
                     "  • Example: '555-1234' will dial just that specific number"
@@ -305,8 +307,17 @@ class MainMenuScreen(Screen):
             self._backspace()
         elif button_id == "start-dial-btn":
             if self.phone_pattern:
-                # Switch to dialing screen with the pattern
-                self.app.switch_screen("dialing")
+                # Validate before proceeding
+                is_valid, error = self.validator.validate_pattern(self.phone_pattern)
+                if is_valid:
+                    # Switch to dialing screen with the pattern
+                    self.app.switch_screen("dialing")
+                else:
+                    # Show error in validation feedback
+                    feedback_label = self.query_one("#validation-feedback", Label)
+                    feedback_label.update(f"❌ Cannot start: {error}")
+                    feedback_label.remove_class("validation-valid", "validation-info")
+                    feedback_label.add_class("validation-error")
 
     def _add_digit(self, digit: str) -> None:
         """Add a digit to the pattern."""
@@ -345,15 +356,20 @@ class MainMenuScreen(Screen):
                 # Calculate how many numbers this pattern will generate
                 try:
                     from vibedialer.dialer import PhoneDialer
+
                     temp_dialer = PhoneDialer(
                         backend_type=self.app.backend_type,
                         storage_type=self.app.storage_type,
                         country_code=self.app.country_code,
                     )
-                    numbers = temp_dialer.generate_numbers(self.phone_pattern)
-                    count = len(numbers)
+                    # Use count_numbers instead of generate_numbers
+                    # for better performance
+                    count = temp_dialer.count_numbers(self.phone_pattern)
                     temp_dialer.cleanup()
-                    feedback_label.update(f"✓ Valid pattern - will dial {count} number{'s' if count != 1 else ''}")
+                    num_str = "number" if count == 1 else "numbers"
+                    feedback_label.update(
+                        f"✓ Valid pattern - will dial {count} {num_str}"
+                    )
                     feedback_label.remove_class("validation-error", "validation-info")
                     feedback_label.add_class("validation-valid")
                 except Exception:
@@ -627,14 +643,20 @@ class DialingScreen(Screen):
                     yield Input(
                         placeholder="Leave empty for auto-generated filename",
                         id="output-file-input",
-                        value=self.storage_kwargs.get("filename", self.storage_kwargs.get("database", "")),
+                        value=self.storage_kwargs.get(
+                            "filename", self.storage_kwargs.get("database", "")
+                        ),
                     )
                 with Horizontal(id="country-code-section"):
                     yield Label("Country Code:")
                     yield Input(
                         placeholder="1",
                         id="country-code-input",
-                        value=str(self.country_code.value if isinstance(self.country_code, CountryCode) else self.country_code),
+                        value=str(
+                            self.country_code.value
+                            if isinstance(self.country_code, CountryCode)
+                            else self.country_code
+                        ),
                     )
                 with Horizontal(id="tui-limit-section"):
                     yield Label("TUI Limit (0=unlimited):")

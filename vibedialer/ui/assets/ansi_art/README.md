@@ -5,9 +5,9 @@ This directory contains ANSI art that is randomly displayed on the welcome scree
 ## Requirements
 
 ### File Format
-- **Extension**: `.txt` (plain text files)
+- **Extension**: `.txt` (plain text files) or `.ans` (ANSI art files with escape codes)
 - **Encoding**: UTF-8
-- **Naming**: Any filename ending in `.txt` (e.g., `example_01.txt`, `my_art.txt`)
+- **Naming**: Any filename ending in `.txt` or `.ans`/`.ANS` (e.g., `example_01.txt`, `my_art.ans`)
 
 ### Art Specifications
 
@@ -23,9 +23,16 @@ This directory contains ANSI art that is randomly displayed on the welcome scree
 - **Avoid**: Control characters, ANSI escape codes (styling is handled by VibeDialer)
 
 #### Styling
+
+For `.txt` files (plain text):
 - **Colors**: Applied automatically using vaporwave color scheme (cyan)
-- **No embedded styling needed**: Don't include ANSI color codes in your art
+- **No embedded styling needed**: Don't include ANSI color codes
 - **Plain text only**: The application handles all styling
+
+For `.ans` files (ANSI art):
+- **Embedded ANSI codes**: Include your own ANSI escape sequences for colors and formatting
+- **Full color control**: Use standard ANSI escape codes (e.g., `\x1b[31m` for red)
+- **Preserved formatting**: Your ANSI codes will be rendered as-is, preserving original styling
 
 ### Best Practices
 
@@ -54,10 +61,17 @@ ASCII banner:
 
 ### Adding Your Art
 
+**For plain text art (.txt):**
 1. Create a new `.txt` file in this directory
-2. Add your ANSI/ASCII art as plain text
-3. The art will automatically be included in the random rotation
-4. No code changes needed!
+2. Add your ASCII art as plain text
+3. The art will be styled automatically with vaporwave colors
+
+**For ANSI art (.ans):**
+1. Create a new `.ans` file in this directory
+2. Include ANSI escape codes for your desired colors and formatting
+3. The art will be rendered with your original styling preserved
+
+Both formats are automatically included in the random rotation. No code changes needed!
 
 ### Tools for Creating ANSI Art
 
@@ -74,7 +88,34 @@ ASCII banner:
 
 ### Current Collection
 
-The application will load all `.txt` files from this directory. Currently installed:
+The application will load all `.txt` and `.ans` files from this directory. Currently installed:
 - `example_01.txt` - Placeholder welcome message
 
 Feel free to add as many as you like - one will be randomly selected each time!
+
+### ANSI Escape Code Reference
+
+For `.ans` files, here are some common ANSI escape codes:
+
+**Colors:**
+- `\x1b[30m` - Black
+- `\x1b[31m` - Red
+- `\x1b[32m` - Green
+- `\x1b[33m` - Yellow
+- `\x1b[34m` - Blue
+- `\x1b[35m` - Magenta
+- `\x1b[36m` - Cyan
+- `\x1b[37m` - White
+
+**Formatting:**
+- `\x1b[1m` - Bold
+- `\x1b[2m` - Dim
+- `\x1b[4m` - Underline
+- `\x1b[0m` - Reset all formatting
+
+**Example:**
+```
+\x1b[1;31m╔═══╗\x1b[0m
+\x1b[1;32m║ H ║\x1b[0m
+\x1b[1;34m╚═══╝\x1b[0m
+```

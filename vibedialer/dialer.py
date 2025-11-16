@@ -182,6 +182,71 @@ class PhoneDialer:
 
         return numbers
 
+    def count_numbers(self, partial_number: str) -> int:
+        """
+        Count how many phone numbers would be generated from a partial number.
+
+        This is much faster than generating all numbers, especially for large ranges.
+        Uses mathematical calculation instead of actually generating the numbers.
+
+        Args:
+            partial_number: A partial phone number (e.g., "555-12")
+
+        Returns:
+            Count of phone numbers that would be generated
+
+        Raises:
+            ValueError: If the pattern is invalid for the country
+        """
+        # Validate the pattern first
+        is_valid, error = self.validator.validate_pattern(partial_number)
+        if not is_valid:
+            raise ValueError(
+                f"Invalid phone number pattern '{partial_number}': {error}"
+            )
+
+        # Remove any formatting characters for processing
+        clean_number = self.validator.normalize_number(partial_number)
+
+        # Determine target length based on country
+        if self.country_code in (CountryCode.USA, CountryCode.CANADA):
+            target_length = 10
+        else:
+            target_length = self.validator.format_spec.max_length
+
+        current_length = len(clean_number)
+
+        if current_length >= target_length:
+            # Already a full number, just one number
+            return 1
+
+        # Calculate how many digits we need to fill
+        digits_needed = target_length - current_length
+
+        # For USA/NANP, we need to account for validation rules
+        if self.country_code in (CountryCode.USA, CountryCode.CANADA):
+            # If we have area code but not exchange (3 digits)
+            if current_length == 3:
+                # Exchange first digit must be 2-9 (8 choices)
+                # Remaining 6 digits can be anything (10^6 choices)
+                return 8 * (10**6)
+            # If we have area code + partial exchange (4 or 5 digits)
+            elif current_length == 4:
+                # Exchange first digit is already set and valid
+                # Need 6 more digits: 10^6
+                return 10**6
+            elif current_length == 5:
+                # Exchange first two digits are set
+                # Need 5 more digits: 10^5
+                return 10**5
+            # If we have area code + exchange (6+ digits)
+            else:
+                # All remaining digits are valid (0-9)
+                return 10**digits_needed
+        else:
+            # For other countries, all combinations are valid
+            return 10**digits_needed
+
     def _format_number(self, number: str) -> str:
         """
         Format a phone number using the validator.
