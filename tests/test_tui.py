@@ -204,7 +204,9 @@ async def test_tui_progress_format():
 
     async with app.run_test(size=(120, 40)):
         # Create and push dialing screen directly (disable auto_start for tests)
-        dialing_screen = DialingScreen(phone_number="555", tui_limit=3, auto_start=False)
+        dialing_screen = DialingScreen(
+            phone_number="555", tui_limit=3, auto_start=False
+        )
         await app.push_screen(dialing_screen)
 
         # Test the progress format logic
@@ -214,8 +216,8 @@ async def test_tui_progress_format():
         # In Textual, we can check the label's render or use str()
         label_str = str(current_number_label.render())
 
-        # Initially should show "---"
-        assert "---" in label_str
+        # Initially should show "(waiting)" (updated from "---")
+        assert "(waiting)" in label_str or "waiting" in label_str
 
         # Test that the progress format is as expected
         # The format should be "[i/total] number"
@@ -304,8 +306,6 @@ async def test_dialing_screen_has_backend_display():
         assert backend_label is not None
         # Check that it shows "Simulation"
         assert "Simulation" in str(backend_label.render())
-
-
 
 
 @pytest.mark.asyncio
@@ -402,3 +402,129 @@ async def test_main_menu_has_random_mode_switch():
         # Should have random mode switch
         random_switch = app.screen.query_one("#random-mode-switch")
         assert random_switch is not None
+
+
+@pytest.mark.asyncio
+async def test_main_menu_shows_10_digit_instructions():
+    """Test that the main menu shows 10-digit dialing instructions."""
+    from textual.widgets import Label
+
+    from vibedialer.ui.tui import MainMenuScreen
+
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Create and push menu screen directly
+        menu_screen = MainMenuScreen()
+        await app.push_screen(menu_screen)
+
+        # Get all labels in the instructions section
+        instructions = app.screen.query_one("#instructions")
+        assert instructions is not None
+
+        # Query all labels within the instructions section
+        labels = instructions.query(Label)
+
+        # Collect all text from labels
+        all_text = " ".join(str(label.render()) for label in labels)
+
+        # Should mention 10-digit dialing
+        assert "10-Digit" in all_text or "10-digit" in all_text
+
+
+@pytest.mark.asyncio
+async def test_main_menu_pattern_input_placeholder_updated():
+    """Test that pattern input placeholder reflects 10-digit format."""
+    from vibedialer.ui.tui import MainMenuScreen
+
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Create and push menu screen directly
+        menu_screen = MainMenuScreen()
+        await app.push_screen(menu_screen)
+
+        # Get pattern input field
+        pattern_input = app.screen.query_one("#pattern-input")
+        assert pattern_input is not None
+
+        # Placeholder should show 10-digit pattern examples
+        # like "555, 555-234, or 555-234-5678"
+        placeholder = str(pattern_input.placeholder)
+        assert "555" in placeholder
+
+
+@pytest.mark.asyncio
+async def test_dialing_screen_shows_pattern_in_status():
+    """Test that dialing screen status section shows the pattern being dialed."""
+    from vibedialer.ui.tui import DialingScreen
+
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Create and push dialing screen with a specific pattern
+        dialing_screen = DialingScreen(phone_number="555-234", auto_start=False)
+        await app.push_screen(dialing_screen)
+
+        # Should have a pattern label in status section
+        pattern_label = app.screen.query_one("#current-pattern")
+        assert pattern_label is not None
+
+        # Should show the pattern being dialed
+        pattern_text = str(pattern_label.render())
+        assert "555-234" in pattern_text
+
+
+@pytest.mark.asyncio
+async def test_dialing_screen_initial_status_is_ready():
+    """Test that dialing screen initial status shows 'Ready' not 'Idle'."""
+    from vibedialer.ui.tui import DialingScreen
+
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Create and push dialing screen
+        dialing_screen = DialingScreen(phone_number="555", auto_start=False)
+        await app.push_screen(dialing_screen)
+
+        # Status label should show "Ready"
+        status_label = app.screen.query_one("#current-status")
+        assert status_label is not None
+
+        status_text = str(status_label.render())
+        assert "Ready" in status_text
+
+
+@pytest.mark.asyncio
+async def test_dialing_screen_initial_number_is_waiting():
+    """Test that dialing screen shows '(waiting)' for current number initially."""
+    from vibedialer.ui.tui import DialingScreen
+
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Create and push dialing screen
+        dialing_screen = DialingScreen(phone_number="555", auto_start=False)
+        await app.push_screen(dialing_screen)
+
+        # Current number label should show "(waiting)"
+        number_label = app.screen.query_one("#current-number")
+        assert number_label is not None
+
+        number_text = str(number_label.render())
+        assert "(waiting)" in number_text or "waiting" in number_text
+
+
+@pytest.mark.asyncio
+async def test_dialing_screen_input_placeholder_updated():
+    """Test that dialing screen input placeholder reflects 10-digit format."""
+    from vibedialer.ui.tui import DialingScreen
+
+    app = VibeDialerApp()
+    async with app.run_test():
+        # Create and push dialing screen
+        dialing_screen = DialingScreen(phone_number="555", auto_start=False)
+        await app.push_screen(dialing_screen)
+
+        # Get phone input field
+        phone_input = app.screen.query_one("#phone-input")
+        assert phone_input is not None
+
+        # Placeholder should show 10-digit pattern examples
+        placeholder = str(phone_input.placeholder)
+        assert "555" in placeholder
