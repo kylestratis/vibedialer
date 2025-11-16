@@ -18,7 +18,12 @@ console = Console()
 
 app = typer.Typer(
     name="vibedialer",
-    help="A war dialer TUI application for sequential phone number dialing.",
+    help="""A war dialer TUI application for sequential phone number dialing.
+
+    Run 'vibedialer' to launch the interactive TUI.
+    Run 'vibedialer dial --help' to see all available options for the dial command.
+    Run 'vibedialer --help' to see this help message.
+    """,
     add_completion=False,
 )
 
@@ -55,6 +60,11 @@ def main(
 
     By default, running 'vibedialer' launches the interactive TUI.
     Use 'vibedialer --cli' for CLI mode or 'vibedialer dial' for advanced options.
+
+    For detailed command options, use --help with any command:
+      vibedialer dial --help    - Show all options for the dial command
+      vibedialer welcome --help - Show options for the welcome command
+      vibedialer keypad --help  - Show options for the keypad command
     """
     # If a subcommand was invoked, let it handle execution
     if ctx.invoked_subcommand is not None:
@@ -72,7 +82,7 @@ def main(
             storage_type=StorageType.CSV,
             storage_kwargs={},
             resume_numbers=None,
-            country_code=CountryCode.USA_CANADA,
+            country_code=CountryCode.USA,
             session_id=None,
             tui_limit=None,
         )
