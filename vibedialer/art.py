@@ -14,7 +14,7 @@ VAPORWAVE_YELLOW = "#FFFB96"
 VAPORWAVE_BLUE = "#05FFA1"
 
 # Path to ANSI art assets directory
-_ASSETS_DIR = Path(__file__).parent.parent / "assets" / "ansi_art"
+_ASSETS_DIR = Path(__file__).parent / "assets" / "ansi_art"
 
 
 def _load_ansi_art_files() -> list[str]:
